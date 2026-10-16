@@ -1,6 +1,7 @@
 {
   "release": "R2",
   "deployment_url": "https://cosc3506-team-02-1.onrender.com",
+  "backend_url": "https://cosc3506-team-02-1backend.onrender.com",
   "checks": [
     {
       "requirement_or_scenario": "R2-01 through R2-06 accountless partner intake",
@@ -35,6 +36,6 @@
       "expected_behavior": "Only supervised opportunities appear, students see the opportunity source and supervisors rather than partner contacts, and an unverified user receives 403 for coordination routes."
     }
   ],
-  "fixture_setup": "Run schema.sql against Supabase, seed the existing R1 fixture, then import the three official R2 fixture files with the documented R2 fixture-import script when supplied. Do not deduplicate submissions by organisation or title; submission identifiers are the only fixture identity.",
+  "fixture_setup": "Run schema.sql against Supabase, seed the existing R1 fixture, then use npm --prefix backend run seed:r2 to import the tracked official R2 fixture bundle. The importer intentionally replaces only the accepted official fixture submission IDs, so use it for a controlled fixture reset rather than routine production operation. Do not deduplicate submissions by organisation or title; submission identifiers are the only fixture identity.",
   "test_access": "Use the instructor-approved passwordless test-mode challenge. Provide linked verified-faculty, unverified-faculty, and staff/admin account details only in the approved private course channel; no passwords or tokens are committed."
 }

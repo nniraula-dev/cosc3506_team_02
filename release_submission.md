@@ -9,8 +9,8 @@ Repository: https://github.com/nniraula-dev/cosc3506_team_02
 Release tag: R2-submission
 Commit: 28a11586df00235bb3d022b9ddc446ed6d8d5e84 (the immutable commit identified by `R2-submission`).
 Adapter: evaluation_adapter.json
-Known issues: The assessed R2-submission tag was created before the official fixture bundle was located. A post-freeze repair commit tracks and seeds the official bundle, including S-201 through S-206; do not retarget the immutable tag. The live Render backend remains unverified until its dashboard configuration is corrected and it deploys the intended branch/commit.
-Test notes: The deployed backend must have the configured Supabase DATABASE_URL. Local verification used the real Supabase database and the instructor-approved passwordless test mode.
+Known issues: The assessed `R2-submission` tag was created before the official fixture bundle was located and before the post-freeze frontend backend-URL correction. The tag must not be retargeted. Post-freeze repair commits track and seed the official bundle, including S-201 through S-206, and configure the deployed frontend to use the confirmed Web Service URL.
+Test notes: On 2026-10-16, the live backend health endpoint returned `200 {"ok":true,"database":"reachable"}` and the deployed public discovery endpoints returned HTTP 200. Local verification used the real Supabase database and the instructor-approved passwordless test mode.
 
 ## Test accounts
 
