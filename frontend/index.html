@@ -19,6 +19,16 @@
     .panel,.card { background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:1.25rem; box-shadow:0 8px 24px rgba(26,43,59,.055); }
     .panel { margin:1rem 0; }
     .panel > h2:first-child { margin-top:0; }
+    .discover-layout { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:1.35rem; align-items:start; }
+    .discover-content > section:first-child { margin-top:0; }
+    .side-rail { position:sticky; top:1rem; margin-top:1rem; overflow:hidden; padding:0; }
+    .side-rail img { display:block; width:100%; aspect-ratio:1/1; object-fit:cover; border-bottom:1px solid var(--line); }
+    .side-copy { padding:1.1rem 1.15rem 1.2rem; }
+    .side-copy h2 { margin:.1rem 0 .5rem; font-size:1rem; }
+    .side-copy p { color:var(--muted); font-size:.91rem; margin:.45rem 0 .8rem; }
+    .path-list { list-style:none; padding:0; margin:0; display:grid; gap:.55rem; }
+    .path-list li { color:#3c5163; font-size:.87rem; padding-left:1.15rem; position:relative; }
+    .path-list li::before { content:""; position:absolute; left:0; top:.54rem; width:.42rem; height:.42rem; border-radius:50%; background:var(--teal); }
     .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1rem; }
     .card { transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease; }
     .card:hover { transform:translateY(-2px); box-shadow:0 13px 28px rgba(26,43,59,.1); border-color:#bdced1; }
@@ -48,17 +58,23 @@
     .actions { margin-top:.75rem; }.error { color:#9b2731; }.success { color:#176b3a; }.empty { color:var(--muted); font-style:italic; }
     #status { min-height:1.5rem; margin:.85rem 0 0; color:#43586a; }
     #intake-form,#subscription-form { border-top:1px solid var(--line); padding-top:.45rem; }
+    @media(max-width:820px) { .discover-layout { grid-template-columns:1fr; } .side-rail { position:static; margin-top:0; } .side-rail img { max-height:260px; object-position:center 48%; } }
     @media(max-width:600px) { header { padding:1.9rem 1rem; background-position:60% center; } main { padding:.9rem .75rem 2.5rem; } .fields { grid-template-columns:1fr; } .panel,.card { padding:1rem; } h2 { margin-top:2rem; } }
   </style>
 </head>
 <body>
 <header><div class="inner"><h1>Algoma Opportunity Registry</h1><p>Faculty research, supervised projects, and industry opportunities for students.</p></div></header>
 <main>
+  <div class="discover-layout">
+  <div class="discover-content">
   <section class="panel" aria-label="Discovery filters"><label for="area">Filter by research or project area</label><select id="area"><option value="">All research areas</option><option>Artificial Intelligence</option><option>Cybersecurity</option><option>Human-Computer Interaction</option><option>Data Science</option><option>Software Engineering</option></select></section>
   <p id="status" aria-live="polite">Loading opportunities…</p>
   <section><h2>Supervised Industry Opportunities</h2><div id="opportunities" class="grid"></div></section>
   <section><h2>Faculty Projects</h2><div id="projects" class="grid"></div></section>
   <section><h2>Faculty</h2><div id="faculty" class="grid"></div></section>
+  </div>
+  <aside class="side-rail panel" aria-label="Explore research pathways"><img src="assets/research-pathways-sidebar.png" alt="Illustration of a laptop, notebook, connected research nodes, and a campus library"><div class="side-copy"><h2>Find your pathway</h2><p>Start where your curiosity is, then connect with a faculty member or a supervised opportunity.</p><ul class="path-list"><li>Explore research areas</li><li>Read faculty project details</li><li>Make first contact by email</li></ul></div></aside>
+  </div>
   <section class="panel" aria-labelledby="intake-heading"><h2 id="intake-heading">Submit an Industry Opportunity</h2><p>No account is needed. Submissions are reviewed by verified faculty before students can see them.</p><form id="intake-form"><div class="fields"><div><label for="organisation_name">Organisation name</label><input id="organisation_name" name="organisation_name" required></div><div><label for="contact_name">Contact name</label><input id="contact_name" name="contact_name"></div><div><label for="contact_email">Contact email</label><input id="contact_email" name="contact_email" type="email" required></div><div><label for="capacity">Capacity</label><select id="capacity" name="capacity"><option value="one-team-only">One team only</option><option value="multiple-teams">Multiple teams possible</option><option value="not-sure">Not sure</option></select></div><div class="wide"><label for="title">Opportunity title</label><input id="title" name="title" required></div><div class="wide"><label for="description">Description</label><textarea id="description" name="description"></textarea></div></div><fieldset><legend>Areas</legend><div class="checks"><label><input type="checkbox" name="areas" value="Artificial Intelligence">Artificial Intelligence</label><label><input type="checkbox" name="areas" value="Cybersecurity">Cybersecurity</label><label><input type="checkbox" name="areas" value="Human-Computer Interaction">Human-Computer Interaction</label><label><input type="checkbox" name="areas" value="Data Science">Data Science</label><label><input type="checkbox" name="areas" value="Software Engineering">Software Engineering</label></div></fieldset><button type="submit">Submit opportunity</button><p id="intake-result" aria-live="polite"></p></form></section>
   <section class="panel" aria-labelledby="auth-heading"><h2 id="auth-heading">Faculty sign-in</h2><p>Use an Algoma email address. The current deployment uses an instructor-approved test code.</p><div class="fields"><div><label for="auth-email">Algoma email</label><input id="auth-email" type="email" autocomplete="email"></div><div><label for="auth-code">One-time code</label><input id="auth-code" inputmode="numeric" autocomplete="one-time-code"></div></div><button type="button" id="auth-request">Request code</button><button type="button" id="auth-verify">Sign in</button><p id="auth-result" aria-live="polite"></p></section>
   <section id="faculty-workspace" hidden><h2>Faculty Coordination Workspace — <span id="faculty-name"></span></h2><section class="panel"><h3>Notification subscriptions</h3><form id="subscription-form"><label><input id="subscribe-all" type="checkbox"> Notify me about all new opportunities</label><fieldset id="subscription-areas"><legend>Or selected areas</legend><div class="checks"><label><input type="checkbox" name="areas" value="Artificial Intelligence">Artificial Intelligence</label><label><input type="checkbox" name="areas" value="Cybersecurity">Cybersecurity</label><label><input type="checkbox" name="areas" value="Human-Computer Interaction">Human-Computer Interaction</label><label><input type="checkbox" name="areas" value="Data Science">Data Science</label><label><input type="checkbox" name="areas" value="Software Engineering">Software Engineering</label></div></fieldset><button type="submit">Save subscriptions</button><p id="subscription-result" aria-live="polite"></p></form><h3>Notifications</h3><ul id="notifications"></ul></section><div id="faculty-opportunities" class="grid"></div></section>
