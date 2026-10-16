@@ -7,7 +7,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "seed:r2": "node seed-r2.js"
+    "seed:r2": "node seed-r2.js",
+    "verify:r2": "node verify-r2-fixture.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

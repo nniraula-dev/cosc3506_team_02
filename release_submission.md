@@ -17,7 +17,7 @@ Provide linked verified-faculty, unverified-faculty, and staff/admin fixture acc
 
 ## Release-specific evidence
 
-- R2 tables are created by `schema.sql`: industry intake, areas, supervisors, private subscriptions, and in-product notifications. `npm run seed:r2` loads the official tracked R2 fixture bundle deterministically.
+- R2 tables are created by `schema.sql`: industry intake, areas, supervisors, private subscriptions, and in-product notifications. `npm --prefix backend run seed:r2` loads the official tracked R2 fixture bundle deterministically; `npm --prefix backend run verify:r2` is a read-only comparison of stored fixture status, areas, capacity, rejection, and notification recipients.
 - Valid accountless intake starts in `awaiting-supervisor`; required fields are validated before insert.
 - Verified faculty can see partner contact details, record non-exclusive willingness, record engagement, and alter private subscriptions. First willingness changes the opportunity to `supervised`; last withdrawal returns it to pending.
 - Public discovery exposes only supervised opportunities and omits partner contact/engagement fields. Faculty-created R1 projects and faculty discovery remain available.
