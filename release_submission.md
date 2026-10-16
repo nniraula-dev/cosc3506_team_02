@@ -4,6 +4,7 @@ Release: R2
 Team: Nitesh Niraula, Sushrit Aryal, Chirag Kaushal
 Project Option: Project 2
 Deployment: https://cosc3506-team-02-1.onrender.com
+Backend: https://cosc3506-team-02-1backend.onrender.com
 Repository: https://github.com/nniraula-dev/cosc3506_team_02
 Release tag: R2-submission
 Commit: 28a11586df00235bb3d022b9ddc446ed6d8d5e84 (the immutable commit identified by `R2-submission`).
