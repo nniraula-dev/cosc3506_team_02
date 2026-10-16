@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS research_areas (
 CREATE TABLE IF NOT EXISTS faculty (
     id SERIAL PRIMARY KEY,
     fixture_id TEXT UNIQUE,
+    user_id INTEGER,
     display_name TEXT NOT NULL,
     public_profile BOOLEAN NOT NULL DEFAULT FALSE,
     verified_faculty BOOLEAN NOT NULL DEFAULT FALSE,
@@ -49,6 +50,7 @@ CREATE TABLE IF NOT EXISTS projects (
     description TEXT NOT NULL DEFAULT '',
     student_level TEXT NOT NULL,
     term TEXT NOT NULL,
+    prerequisite TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'draft',
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -81,6 +83,56 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Authentication challenges and sessions are persisted so authentication works
+-- across backend restarts and deployments.
+CREATE TABLE IF NOT EXISTS auth_challenges (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL,
+    challenge_code TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_challenges_email
+    ON auth_challenges(email);
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id
+    ON auth_sessions(user_id);
+
+-- Safe upgrades for databases initialized with the original R1 schema.
+ALTER TABLE faculty
+    ADD COLUMN IF NOT EXISTS user_id INTEGER;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'faculty_user_id_fkey'
+    ) THEN
+        ALTER TABLE faculty
+            ADD CONSTRAINT faculty_user_id_fkey
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'faculty_user_id_unique'
+    ) THEN
+        ALTER TABLE faculty
+            ADD CONSTRAINT faculty_user_id_unique UNIQUE (user_id);
+    END IF;
+END $$;
+
+ALTER TABLE projects
+    ADD COLUMN IF NOT EXISTS prerequisite TEXT NOT NULL DEFAULT '';
+
 -- Helpful indexes for discovery
 CREATE INDEX IF NOT EXISTS idx_faculty_public
     ON faculty(public_profile);
@@ -93,3 +145,6 @@ CREATE INDEX IF NOT EXISTS idx_projects_status
 
 CREATE INDEX IF NOT EXISTS idx_projects_owner
     ON projects(owner_faculty_id);
+
+CREATE INDEX IF NOT EXISTS idx_faculty_user_id
+    ON faculty(user_id);

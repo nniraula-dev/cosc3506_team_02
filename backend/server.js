@@ -4,7 +4,6 @@ const crypto = require("crypto");
 const cors = require("cors");
 const express = require("express");
 const { Pool } = require("pg");
-const registerR1ManagementRoutes = require("./r1-management-routes");
 
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is required.");
@@ -568,6 +567,57 @@ app.get("/api/projects", async (request, response, next) => {
     response.json(result.rows);
   } catch (error) {
     next(error);
+  }
+});
+
+/*
+ * Faculty owner: list own projects, including drafts.
+ *
+ * This must be registered before /api/projects/:fixtureId so that the word
+ * "mine" is not treated as a fixture id.
+ */
+app.get("/api/projects/mine", async (request, response) => {
+  try {
+    const user = await requireR1User(request, response);
+    if (!user) return;
+
+    const faculty = await getOwnedFaculty(user.id);
+    if (!faculty) {
+      return response.status(404).json({
+        error: "No faculty profile is associated with this account.",
+      });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT
+        p.fixture_id,
+        p.title,
+        p.description,
+        p.student_level,
+        p.term,
+        p.prerequisite,
+        p.status,
+        COALESCE(
+          ARRAY_AGG(DISTINCT ra.name)
+          FILTER (WHERE ra.name IS NOT NULL),
+          '{}'
+        ) AS areas
+      FROM projects p
+      LEFT JOIN project_research_areas pra ON pra.project_id = p.id
+      LEFT JOIN research_areas ra ON ra.id = pra.research_area_id
+      WHERE p.owner_faculty_id = $1
+      GROUP BY p.id, p.fixture_id, p.title, p.description,
+        p.student_level, p.term, p.prerequisite, p.status
+      ORDER BY p.updated_at DESC
+      `,
+      [faculty.id]
+    );
+
+    response.json(result.rows);
+  } catch (error) {
+    console.error("My projects error:", error.message);
+    response.status(500).json({ error: "Unable to load your projects." });
   }
 });
 
@@ -1277,4 +1327,3 @@ const port = process.env.PORT || 3000;
 app.listen(port, "0.0.0.0", () => {
   console.log(`API listening on port ${port}`);
 });
-registerR1ManagementRoutes(app, pool);
