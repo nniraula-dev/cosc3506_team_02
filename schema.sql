@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS industry_opportunities (
     title TEXT NOT NULL CHECK (btrim(title) <> ''),
     description TEXT NOT NULL DEFAULT '',
     capacity TEXT NOT NULL DEFAULT 'not-sure'
-        CHECK (capacity IN ('one-team', 'multiple-teams', 'not-sure')),
+        CHECK (capacity IN ('one-team-only', 'multiple-teams', 'not-sure')),
     status TEXT NOT NULL DEFAULT 'awaiting-supervisor'
         CHECK (status IN ('awaiting-supervisor', 'supervised')),
     engagement_state TEXT NOT NULL DEFAULT 'not-contacted'
@@ -212,3 +212,11 @@ CREATE INDEX IF NOT EXISTS idx_industry_areas_area
     ON industry_opportunity_areas(research_area_id);
 CREATE INDEX IF NOT EXISTS idx_faculty_notifications_faculty
     ON faculty_notifications(faculty_id, created_at DESC);
+
+-- Upgrade early R2 development databases that used the pre-fixture name
+-- "one-team" for the one-team capacity value.
+ALTER TABLE industry_opportunities
+    DROP CONSTRAINT IF EXISTS industry_opportunities_capacity_check;
+ALTER TABLE industry_opportunities
+    ADD CONSTRAINT industry_opportunities_capacity_check
+    CHECK (capacity IN ('one-team-only', 'multiple-teams', 'not-sure'));

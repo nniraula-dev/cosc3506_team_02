@@ -1,6 +1,6 @@
 /* Release 2 industry intake, supervision, coordination, and notifications. */
 module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) {
-  const capacityValues = new Set(["one-team", "multiple-teams", "not-sure"]);
+  const capacityValues = new Set(["one-team-only", "multiple-teams", "not-sure"]);
   const engagementValues = new Set([
     "not-contacted",
     "discussion-underway",
@@ -100,7 +100,9 @@ module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) 
       const contactEmail = text(request.body.contact_email).toLowerCase();
       const title = text(request.body.title);
       const description = text(request.body.description);
-      const capacity = request.body.capacity || "not-sure";
+      const capacity = request.body.capacity === "one-team"
+        ? "one-team-only"
+        : request.body.capacity || "not-sure";
       const submissionId = text(request.body.submission_id) || null;
 
       if (!organisationName || !contactEmail || !title) {

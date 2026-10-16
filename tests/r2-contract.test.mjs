@@ -37,3 +37,12 @@ test("public UI escapes untrusted opportunity text and identifies the source", (
   assert.match(app, /Industry opportunity/);
   assert.ok(!app.includes("innerHTML = item.description"));
 });
+
+test("official R2 fixture is tracked with expected capacities and duplicate partner submissions", () => {
+  const intake = JSON.parse(read("backend/r2_fixture/intake_submissions.json"));
+  const outcomes = JSON.parse(read("backend/r2_fixture/expected_intake_outcomes.json"));
+  assert.deepEqual(outcomes.accepted_submission_ids, ["S-201", "S-202", "S-203", "S-205", "S-206"]);
+  assert.deepEqual(outcomes.rejected_submission_ids, ["S-204"]);
+  assert.equal(intake.find((item) => item.fixture_id === "S-201").capacity, "one-team-only");
+  assert.equal(intake.filter((item) => item.organisation === "Northwind Robotics").length, 2);
+});

@@ -6,7 +6,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "seed:r2": "node seed-r2.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
