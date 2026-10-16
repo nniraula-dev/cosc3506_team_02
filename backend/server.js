@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const cors = require("cors");
 const express = require("express");
 const { Pool } = require("pg");
+const registerR2Routes = require("./r2-routes");
 
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is required.");
@@ -428,6 +429,9 @@ app.get("/api/faculty", async (request, response, next) => {
     next(error);
   }
 });
+
+// Must precede /api/faculty/:fixtureId so "opportunities" is not read as an id.
+registerR2Routes(app, { pool, getAuthenticatedUser });
 
 /*
  * Single faculty profile

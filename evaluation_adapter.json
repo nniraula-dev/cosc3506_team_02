@@ -1,0 +1,40 @@
+{
+  "release": "R2",
+  "deployment_url": "https://cosc3506-team-02-1.onrender.com",
+  "checks": [
+    {
+      "requirement_or_scenario": "R2-01 through R2-06 accountless partner intake",
+      "entry_point": "/#intake-heading and POST /api/intake",
+      "method_or_action": "Submit organisation, contact, title, description, capacity, and one or more areas without signing in",
+      "role": "public",
+      "setup": "Use the supplied R2 intake fixture once imported; submissions remain pending initially.",
+      "expected_behavior": "Valid data creates an awaiting-supervisor record; missing organisation, contact email, title, or area is rejected and partner data never appears publicly."
+    },
+    {
+      "requirement_or_scenario": "R2-07 through R2-15 faculty supervision and coordination",
+      "entry_point": "/api/faculty/opportunities, PUT /api/opportunities/{id}/willingness, and PUT /api/opportunities/{id}/engagement",
+      "method_or_action": "Verified faculty signs in, records willingness, and optionally records engagement.",
+      "role": "verified faculty",
+      "setup": "Use a linked, verified faculty fixture account through the passwordless test-mode flow.",
+      "expected_behavior": "First willingness publishes the opportunity, additional willingness remains allowed, visible interest count is updated, and withdrawing the last willingness returns it to awaiting-supervisor."
+    },
+    {
+      "requirement_or_scenario": "R2-16 through R2-20 subscriptions and notifications",
+      "entry_point": "/api/faculty/me/subscriptions and /api/faculty/me/notifications",
+      "method_or_action": "Save all-area or selected-area subscriptions, then submit a matching opportunity.",
+      "role": "verified faculty",
+      "setup": "Save a subscription before submitting the matching intake fixture.",
+      "expected_behavior": "An in-product notification is created for matching future submissions; settings and notifications remain faculty-private."
+    },
+    {
+      "requirement_or_scenario": "R2-21 through R2-25 student discovery and authorization",
+      "entry_point": "/api/opportunities and the deployed discovery page",
+      "method_or_action": "Browse while logged out; compare pending versus supervised opportunity visibility.",
+      "role": "public/student",
+      "setup": "At least one opportunity has a verified faculty supervisor; use an unverified account for negative authorization checks.",
+      "expected_behavior": "Only supervised opportunities appear, students see the opportunity source and supervisors rather than partner contacts, and an unverified user receives 403 for coordination routes."
+    }
+  ],
+  "fixture_setup": "Run schema.sql against Supabase, seed the existing R1 fixture, then import the three official R2 fixture files with the documented R2 fixture-import script when supplied. Do not deduplicate submissions by organisation or title; submission identifiers are the only fixture identity.",
+  "test_access": "Use the instructor-approved passwordless test-mode challenge. Provide linked verified-faculty, unverified-faculty, and staff/admin account details only in the approved private course channel; no passwords or tokens are committed."
+}

@@ -148,3 +148,67 @@ CREATE INDEX IF NOT EXISTS idx_projects_owner
 
 CREATE INDEX IF NOT EXISTS idx_faculty_user_id
     ON faculty(user_id);
+
+-- Release 2: accountless industry intake and faculty coordination.
+CREATE TABLE IF NOT EXISTS industry_opportunities (
+    id SERIAL PRIMARY KEY,
+    submission_id TEXT UNIQUE,
+    organisation_name TEXT NOT NULL CHECK (btrim(organisation_name) <> ''),
+    contact_name TEXT NOT NULL DEFAULT '',
+    contact_email TEXT NOT NULL CHECK (btrim(contact_email) <> ''),
+    title TEXT NOT NULL CHECK (btrim(title) <> ''),
+    description TEXT NOT NULL DEFAULT '',
+    capacity TEXT NOT NULL DEFAULT 'not-sure'
+        CHECK (capacity IN ('one-team', 'multiple-teams', 'not-sure')),
+    status TEXT NOT NULL DEFAULT 'awaiting-supervisor'
+        CHECK (status IN ('awaiting-supervisor', 'supervised')),
+    engagement_state TEXT NOT NULL DEFAULT 'not-contacted'
+        CHECK (engagement_state IN ('not-contacted', 'discussion-underway', 'partner-confirmed', 'no-longer-pursuing')),
+    engagement_faculty_id INTEGER REFERENCES faculty(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS industry_opportunity_areas (
+    opportunity_id INTEGER NOT NULL REFERENCES industry_opportunities(id) ON DELETE CASCADE,
+    research_area_id INTEGER NOT NULL REFERENCES research_areas(id) ON DELETE RESTRICT,
+    PRIMARY KEY (opportunity_id, research_area_id)
+);
+
+CREATE TABLE IF NOT EXISTS industry_opportunity_supervisors (
+    opportunity_id INTEGER NOT NULL REFERENCES industry_opportunities(id) ON DELETE CASCADE,
+    faculty_id INTEGER NOT NULL REFERENCES faculty(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (opportunity_id, faculty_id)
+);
+
+CREATE TABLE IF NOT EXISTS faculty_opportunity_subscriptions (
+    faculty_id INTEGER PRIMARY KEY REFERENCES faculty(id) ON DELETE CASCADE,
+    subscribe_all BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS faculty_opportunity_subscription_areas (
+    faculty_id INTEGER NOT NULL REFERENCES faculty(id) ON DELETE CASCADE,
+    research_area_id INTEGER NOT NULL REFERENCES research_areas(id) ON DELETE CASCADE,
+    PRIMARY KEY (faculty_id, research_area_id)
+);
+
+CREATE TABLE IF NOT EXISTS faculty_notifications (
+    id SERIAL PRIMARY KEY,
+    faculty_id INTEGER NOT NULL REFERENCES faculty(id) ON DELETE CASCADE,
+    opportunity_id INTEGER NOT NULL REFERENCES industry_opportunities(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    read_at TIMESTAMPTZ,
+    UNIQUE (faculty_id, opportunity_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_industry_opportunities_status
+    ON industry_opportunities(status);
+CREATE INDEX IF NOT EXISTS idx_industry_supervisors_faculty
+    ON industry_opportunity_supervisors(faculty_id);
+CREATE INDEX IF NOT EXISTS idx_industry_areas_area
+    ON industry_opportunity_areas(research_area_id);
+CREATE INDEX IF NOT EXISTS idx_faculty_notifications_faculty
+    ON faculty_notifications(faculty_id, created_at DESC);
