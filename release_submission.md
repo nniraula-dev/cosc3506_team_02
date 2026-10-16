@@ -6,7 +6,7 @@ Project Option: Project 2
 Deployment: https://cosc3506-team-02-1.onrender.com
 Repository: https://github.com/nniraula-dev/cosc3506_team_02
 Release tag: R2-submission
-Commit: The immutable commit identified by the `R2-submission` Git tag. The full SHA is available from `git rev-list -n 1 R2-submission` after freeze.
+Commit: 28a11586df00235bb3d022b9ddc446ed6d8d5e84 (the immutable commit identified by `R2-submission`).
 Adapter: evaluation_adapter.json
 Known issues: The assessed R2-submission tag was created before the official fixture bundle was located. A post-freeze repair commit tracks and seeds the official bundle, including S-201 through S-206; do not retarget the immutable tag. The live Render backend remains unverified until its dashboard configuration is corrected and it deploys the intended branch/commit.
 Test notes: The deployed backend must have the configured Supabase DATABASE_URL. Local verification used the real Supabase database and the instructor-approved passwordless test mode.
