@@ -91,7 +91,9 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
   }
 
   async function findOpportunity(client, identifier, lock = false) {
-    const value = text(identifier);
+    // Route params arrive as text, while internal match/outcome records carry
+    // numeric opportunity ids. Normalise both paths before querying.
+    const value = identifier === null || identifier === undefined ? "" : String(identifier).trim();
     const result = await client.query(
       `SELECT o.id, o.submission_id, o.title, o.description, o.status,
               o.source_type, o.target_term, o.application_deadline,

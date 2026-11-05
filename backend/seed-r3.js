@@ -102,8 +102,8 @@ async function seedStaffAndFacultyAccounts(client) {
      RETURNING id`
   );
 
-  // These are convenient local fixture accounts. Existing faculty links are
-  // intentionally preserved, because real course accounts may already be linked.
+  // The controlled R3 fixture uses these linked faculty accounts for its
+  // multi-role evaluation; seed data must therefore be deterministic.
   for (const [fixtureId, email] of Object.entries(facultyAccountEmails)) {
     const user = await client.query(
       `INSERT INTO users (email, is_verified_faculty, is_admin)
@@ -115,7 +115,7 @@ async function seedStaffAndFacultyAccounts(client) {
     );
     await client.query(
       `UPDATE faculty
-          SET user_id = COALESCE(user_id, $1)
+          SET user_id = $1
         WHERE fixture_id = $2`,
       [user.rows[0].id, fixtureId]
     );
