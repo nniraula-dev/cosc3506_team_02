@@ -3,14 +3,14 @@
 Release: R3
 Team: Nitesh Niraula, Sushrit Aryal, Chirag Kaushal
 Project Option: Project 2
-Deployment: PENDING — deploy and verify the R3 frontend URL
-Backend: PENDING — deploy and verify the R3 backend URL
+Deployment: https://cosc3506-team-02-1.onrender.com
+Backend: https://cosc3506-team-02-1backend.onrender.com
 Repository: https://github.com/nniraula-dev/cosc3506_team_02
-Release tag: R3-submission (PENDING — create only after final deployed QA)
-Commit: PENDING — replace with the full immutable `R3-submission` commit SHA
+Release tag: R3-submission
+Commit: fadf88146c4d82f8c3659f5ab752f4d6fce1affc
 Adapter: evaluation_adapter.json
-Known issues: PENDING — record only verified, release-relevant issues; do not claim “none” until the deployed R3 QA is complete.
-Test notes: PENDING — record the actual browser/device, Toronto date/time, accounts/roles, and deployed workflow results.
+Known issues: At package preparation, Supabase was restoring from a paused state; therefore live database and multi-account deployment QA remains pending. The deployed API may temporarily return `database unavailable` until restoration completes.
+Test notes: Static R1/R2/R3 contract suite passed (18/18) and the production frontend build passed on 2026-11-04 (Toronto). The R3 fixture verifier and deployed multi-account runner are included but intentionally await database restoration.
 
 ## Finalization record
 
@@ -20,13 +20,13 @@ never convert an unrun check into a claim.
 
 | Required fact | Final value to record |
 | --- | --- |
-| Frozen frontend URL | `PENDING_FRONTEND_URL` |
-| Frozen backend/API base URL | `PENDING_BACKEND_URL` |
-| Immutable tag and full SHA | `R3-submission @ PENDING_40_CHAR_SHA` |
-| Database migration / fixture verifier | `PENDING_COMMAND_AND_PASS_TIMESTAMP_TORONTO` |
-| Deployed multi-role QA | `PENDING_BROWSER_VIEWPORT_AND_TIMESTAMP_TORONTO` |
-| R1/R2 regression result | `PENDING_PASS_OR_SPECIFIC_EXCEPTION` |
-| Known issues | `PENDING_NONE_KNOWN_AFTER_QA_OR_PRECISE_LIST` |
+| Frozen frontend URL | `https://cosc3506-team-02-1.onrender.com` |
+| Frozen backend/API base URL | `https://cosc3506-team-02-1backend.onrender.com` |
+| Immutable tag and full SHA | `R3-submission @ fadf88146c4d82f8c3659f5ab752f4d6fce1affc` |
+| Database migration / fixture verifier | Pending: Supabase restoration in progress at package preparation |
+| Deployed multi-role QA | Pending: run `npm --prefix backend run verify:r3-api` only after restoration |
+| R1/R2 regression result | 18/18 static R1/R2/R3 contract tests passed; production frontend build passed |
+| Known issues | Live database verification deferred while Supabase restores from pause |
 
 The evaluator guide and QA evidence checklist are repository aids, not extra
 claims of completion. They should agree with this table and the frozen tag.

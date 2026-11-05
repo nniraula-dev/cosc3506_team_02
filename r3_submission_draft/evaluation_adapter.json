@@ -1,7 +1,10 @@
 {
   "release": "R3",
-  "deployment_url": "PENDING — replace with the verified frozen R3 frontend URL",
-  "backend_url": "PENDING — replace with the verified frozen R3 backend URL",
+  "deployment_url": "https://cosc3506-team-02-1.onrender.com",
+  "backend_url": "https://cosc3506-team-02-1backend.onrender.com",
+  "release_tag": "R3-submission",
+  "release_commit": "fadf88146c4d82f8c3659f5ab752f4d6fce1affc",
+  "verification_status": "Static R1/R2/R3 contract tests passed 18/18 and production frontend build passed. Live database fixture and multi-account deployment QA are pending Supabase restoration from a paused state.",
   "checks": [
     {
       "requirement_or_scenario": "R3-01 through R3-05 mutual faculty-student match",

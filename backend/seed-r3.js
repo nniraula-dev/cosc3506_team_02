@@ -176,7 +176,7 @@ async function seedOpportunities(client, facultyIds) {
          application_deadline, lifecycle_state, lifecycle_reason,
          partner_agreed_in_principle)
        VALUES ($1, $2, $3, $4, $5, $6, 'one-team-only', 'supervised',
-               $7, $8, $9, $10, $11, $12)
+               $7, $8::text, $9::date, $10, $11, $12)
        RETURNING id`,
       [
         item.fixture_id,
@@ -278,7 +278,7 @@ async function seedOutcomes(client, facultyIds, studentUserIds, opportunityIds, 
         (fixture_id, opportunity_id, run_id, summary, completed_on, links,
          created_by_user_id, faculty_confirmed_by, faculty_confirmed_at)
        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8,
-               CASE WHEN $8 IS NULL THEN NULL ELSE now() END)
+               CASE WHEN $8::integer IS NULL THEN NULL ELSE now() END)
        RETURNING id`,
       [
         outcome.fixture_id,
