@@ -7,10 +7,10 @@ Deployment: https://cosc3506-team-02-1.onrender.com
 Backend: https://cosc3506-team-02-1backend.onrender.com
 Repository: https://github.com/nniraula-dev/cosc3506_team_02
 Release tag: R3-submission
-Commit: fadf88146c4d82f8c3659f5ab752f4d6fce1affc
+Commit: 9c4f731c0188f62e80cecef6b36321279179f5b9
 Adapter: evaluation_adapter.json
-Known issues: At package preparation, Supabase was restoring from a paused state; therefore live database and multi-account deployment QA remains pending. The deployed API may temporarily return `database unavailable` until restoration completes.
-Test notes: Static R1/R2/R3 contract suite passed (18/18) and the production frontend build passed on 2026-11-04 (Toronto). The R3 fixture verifier and deployed multi-account runner are included but intentionally await database restoration.
+Known issues: None known after deployed QA.
+Test notes: The official fixture verifier passed against the restored database. Controlled deployed multi-account QA passed for lifecycle renewal/restore, declined/withdrawn match history, independent confirmations, unauthorized-action rejection, outcome confirmation/consent, showcase visibility, and profile-only hiding. Static R1/R2/R3 contract suite passed (18/18) and the production frontend build passed.
 
 ## Finalization record
 
@@ -22,11 +22,11 @@ never convert an unrun check into a claim.
 | --- | --- |
 | Frozen frontend URL | `https://cosc3506-team-02-1.onrender.com` |
 | Frozen backend/API base URL | `https://cosc3506-team-02-1backend.onrender.com` |
-| Immutable tag and full SHA | `R3-submission @ fadf88146c4d82f8c3659f5ab752f4d6fce1affc` |
-| Database migration / fixture verifier | Pending: Supabase restoration in progress at package preparation |
-| Deployed multi-role QA | Pending: run `npm --prefix backend run verify:r3-api` only after restoration |
+| Immutable tag and full SHA | `R3-submission @ 9c4f731c0188f62e80cecef6b36321279179f5b9` |
+| Database migration / fixture verifier | `schema:apply`, `seed:r3`, and `verify:r3` passed against the restored Supabase database |
+| Deployed multi-role QA | `verify:r3-api` passed against the Render backend; baseline fixture was re-seeded afterward |
 | R1/R2 regression result | 18/18 static R1/R2/R3 contract tests passed; production frontend build passed |
-| Known issues | Live database verification deferred while Supabase restores from pause |
+| Known issues | None known after deployed QA |
 
 The evaluator guide and QA evidence checklist are repository aids, not extra
 claims of completion. They should agree with this table and the frozen tag.
