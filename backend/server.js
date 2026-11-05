@@ -5,6 +5,7 @@ const cors = require("cors");
 const express = require("express");
 const { Pool } = require("pg");
 const registerR2Routes = require("./r2-routes");
+const registerR3Routes = require("./r3-routes");
 
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is required.");
@@ -321,9 +322,17 @@ app.get("/api/me", async (request, response, next) => {
       [user.id]
     );
 
+    const studentResult = await pool.query(
+      `SELECT fixture_id, display_name, public_profile
+       FROM student_profiles
+       WHERE user_id = $1`,
+      [user.id]
+    );
+
     response.json({
       user,
       faculty: facultyResult.rows[0] || null,
+      student: studentResult.rows[0] || null,
     });
   } catch (error) {
     next(error);
@@ -432,6 +441,9 @@ app.get("/api/faculty", async (request, response, next) => {
 
 // Must precede /api/faculty/:fixtureId so "opportunities" is not read as an id.
 registerR2Routes(app, { pool, getAuthenticatedUser });
+// Must precede /api/faculty/:fixtureId so public outcome profile routes are
+// not interpreted as a faculty fixture id by the older R1 route.
+registerR3Routes(app, { pool, getAuthenticatedUser });
 
 /*
  * Single faculty profile

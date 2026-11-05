@@ -66,16 +66,60 @@ module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) 
   }
 
   function visibleOpportunityQuery(includePrivate) {
+    // R3 ordinary discovery has a second guard in addition to the persisted
+    // lifecycle state.  It evaluates deadline-based availability against the
+    // auditable fixture clock and never lets a confirmed match remain listed.
+    // The explicit expiry_exception is created only by the authorized R3-13
+    // restore operation, preserving the original deadline in history.
+    const currentlyAvailable = `
+      o.lifecycle_state = 'open'
+      AND (
+        o.r3_schedule_required = FALSE
+        OR (o.target_term IS NOT NULL AND o.application_deadline IS NOT NULL)
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM match_proposals confirmed_match
+        WHERE confirmed_match.opportunity_id = o.id
+          AND confirmed_match.state = 'confirmed'
+          -- A confirmed match closes only the run it belongs to.  Renewal
+          -- retains old matches for history, but the new current run must be
+          -- discoverable again.  Legacy R2 rows have no run and remain
+          -- conservatively unavailable if a confirmed legacy match exists.
+          AND (
+            confirmed_match.run_id = (
+              SELECT current_run.id
+              FROM opportunity_runs current_run
+              WHERE current_run.opportunity_id = o.id
+                AND current_run.is_current = TRUE
+            )
+            OR (
+              confirmed_match.run_id IS NULL
+              AND NOT EXISTS (
+                SELECT 1 FROM opportunity_runs current_run
+                WHERE current_run.opportunity_id = o.id
+                  AND current_run.is_current = TRUE
+              )
+            )
+          )
+      )
+      AND (
+        o.expiry_exception = TRUE
+        OR o.application_deadline IS NULL
+        OR o.application_deadline >= COALESCE(
+          (SELECT evaluation_date FROM r3_evaluation_settings WHERE singleton = TRUE),
+          DATE '2026-11-06'
+        )
+      )`;
     const visibility = includePrivate
-      ? "o.status = 'supervised'"
-      : `o.status = 'supervised' AND EXISTS (
+      ? `o.status = 'supervised' AND ${currentlyAvailable}`
+      : `o.status = 'supervised' AND ${currentlyAvailable} AND EXISTS (
           SELECT 1 FROM industry_opportunity_supervisors public_ios
           JOIN faculty public_f ON public_f.id = public_ios.faculty_id
           WHERE public_ios.opportunity_id = o.id AND public_f.public_profile = TRUE
         )`;
     return `
       SELECT o.id, o.submission_id, o.organisation_name, o.title, o.description,
-        o.capacity, o.status, o.created_at,
+        o.capacity, o.status, o.target_term, o.application_deadline, o.created_at,
         COALESCE(array_agg(DISTINCT ra.name) FILTER (WHERE ra.name IS NOT NULL), '{}') AS areas,
         COALESCE(json_agg(DISTINCT jsonb_build_object(
           'fixture_id', f.fixture_id, 'display_name', f.display_name,
@@ -119,8 +163,8 @@ module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) 
       const areas = await areasFor(client, request.body.areas);
       const inserted = await client.query(
         `INSERT INTO industry_opportunities
-          (submission_id, organisation_name, contact_name, contact_email, title, description, capacity)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+          (submission_id, organisation_name, contact_name, contact_email, title, description, capacity, r3_schedule_required)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
          RETURNING id, submission_id, title, status, capacity, created_at`,
         [submissionId, organisationName, contactName, contactEmail, title, description, capacity]
       );

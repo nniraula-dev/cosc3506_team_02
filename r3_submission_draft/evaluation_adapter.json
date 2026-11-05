@@ -1,0 +1,49 @@
+{
+  "release": "R3",
+  "deployment_url": "PENDING — replace with the verified frozen R3 frontend URL",
+  "backend_url": "PENDING — replace with the verified frozen R3 backend URL",
+  "checks": [
+    {
+      "requirement_or_scenario": "R3-01 through R3-05 mutual faculty-student match",
+      "entry_point": "POST /api/opportunities/{O-xxx}/matches; GET /api/student/matches; POST /api/matches/{M-xxx}/confirm or /decline",
+      "method_or_action": "Verified faculty proposes a match naming two students; each student independently confirms or declines.",
+      "role": "verified faculty, invited student one, invited student two",
+      "setup": "Load the R3 fixture and use two distinct student fixture profiles. Use a controlled/reset fixture copy for stateful scenarios.",
+      "expected_behavior": "A proposal becomes partly confirmed after the first confirmation and confirmed only after every named student confirms. Invited participants see the proposal and response state; neither faculty nor an uninvolved student can confirm on another person's behalf."
+    },
+    {
+      "requirement_or_scenario": "R3-04 and R3-07 decline, withdrawal, and partner agreement",
+      "entry_point": "POST /api/matches/{M-xxx}/decline; POST /api/matches/{M-xxx}/withdraw; PATCH /api/matches/{M-xxx}/partner-agreement",
+      "method_or_action": "An invited student declines one proposal; the proposing faculty member withdraws another; faculty records partner agreement in principle for an industry opportunity.",
+      "role": "invited student and proposing verified faculty",
+      "setup": "Create separate test proposals so a decline and withdrawal do not overwrite the baseline fixture state.",
+      "expected_behavior": "The opportunity and match records remain; declined and withdrawn are distinct. Partner agreement is a faculty-recorded statement, not a partner login or public contact disclosure."
+    },
+    {
+      "requirement_or_scenario": "R3-08 through R3-13 lifecycle, expiry, renewal, and restore",
+      "entry_point": "GET /api/opportunities/{O-xxx}/lifecycle; PATCH /api/opportunities/{O-xxx}/lifecycle; POST /api/opportunities/{O-xxx}/renew",
+      "method_or_action": "Evaluate the official fixture using its simulated date, inspect each lifecycle state, renew expired O-302 and completed O-306, then restore a mistakenly withdrawn opportunity.",
+      "role": "public/student for safe lifecycle explanation; verified faculty or staff for management",
+      "setup": "Load the official R3 fixture. Its evaluation date is 2026-11-06, not the wall-clock date. Use independent/reset data for renewal scenarios.",
+      "expected_behavior": "O-302 and O-304 are expired; O-301 and O-306 do not expire because confirmed matches exist. Expired, Withdrawn, Matched, Completed, and Archived remain distinct. Renewal preserves the opportunity identity and prior-run outcomes; restore does not recreate the record."
+    },
+    {
+      "requirement_or_scenario": "R3-14 through R3-18 outcomes, faculty confirmation, consent, and profiles",
+      "entry_point": "POST /api/opportunities/{O-xxx}/outcomes; POST /api/outcomes/{R-xxx}/faculty-confirm; PATCH /api/outcomes/{R-xxx}/consent; PATCH /api/outcomes/{R-xxx}/profile-visibility; GET /api/showcase",
+      "method_or_action": "A confirmed-match participant records an outcome, participants record consent, participating verified faculty confirms it, and a student changes their profile-only visibility.",
+      "role": "participating student, participating verified faculty, public visitor",
+      "setup": "Use R-501 as the public eligible fixture outcome, R-502 as awaiting faculty confirmation, and R-503 as a faculty-confirmed outcome owned by non-public faculty.",
+      "expected_behavior": "Unconfirmed outcomes remain participant-private. Public showcase requires faculty confirmation, consent, and public faculty eligibility. Student profile visibility affects only the student's own profile, not faculty/showcase visibility."
+    },
+    {
+      "requirement_or_scenario": "R3-19 through R3-23 public discovery, privacy, authorization, and regression",
+      "entry_point": "GET /api/opportunities; GET /api/showcase; /#availability-heading; existing R1/R2 discovery and coordination routes",
+      "method_or_action": "Browse logged out and as an ordinary/uninvolved student; attempt unauthorized match/outcome actions with ordinary browser/network controls; recheck R1/R2 workflows.",
+      "role": "logged-out visitor, ordinary student, uninvolved student",
+      "setup": "Official R3 fixture loaded; use an account not invited to the tested match or outcome.",
+      "expected_behavior": "Only currently available opportunities appear in ordinary discovery; a bookmarked reference receives a safe lifecycle explanation. Proposed/declined participation and partner contacts remain private. The server refuses unauthorized requests, while R1/R2 behavior remains available."
+    }
+  ],
+  "fixture_setup": "Apply schema.sql to the intended R3 database, then use the team's controlled R1/R2 setup followed by npm --prefix backend run seed:r3. The R3 fixture is at backend/r3_fixture/ and uses evaluation_date 2026-11-06. Run npm --prefix backend run verify:r3 after seeding; do not treat expected_lifecycle_results.json as import data.",
+  "test_access": "Use instructor-approved passwordless test mode. Provide linked verified-faculty, two invited student, uninvolved student, and staff/admin test access only through the approved private course channel. Do not include passwords, tokens, or database credentials in this adapter."
+}
