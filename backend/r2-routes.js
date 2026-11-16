@@ -119,7 +119,7 @@ module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) 
         )`;
     return `
       SELECT o.id, o.submission_id, o.organisation_name, o.title, o.description,
-        o.capacity, o.status, o.target_term, o.application_deadline, o.created_at,
+        o.source_type, o.capacity, o.status, o.target_term, o.application_deadline, o.created_at,
         COALESCE(array_agg(DISTINCT ra.name) FILTER (WHERE ra.name IS NOT NULL), '{}') AS areas,
         COALESCE(json_agg(DISTINCT jsonb_build_object(
           'fixture_id', f.fixture_id, 'display_name', f.display_name,
@@ -227,7 +227,7 @@ module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) 
       if (response.headersSent) return;
       const result = await pool.query(
         `SELECT o.id, o.submission_id, o.organisation_name, o.contact_name, o.contact_email,
-          o.title, o.description, o.capacity, o.status, o.engagement_state,
+          o.title, o.description, o.source_type, o.capacity, o.status, o.engagement_state,
           lead.fixture_id AS engagement_faculty_fixture_id,
           lead.display_name AS engagement_faculty_name,
           COUNT(DISTINCT ios.faculty_id)::int AS willingness_count,

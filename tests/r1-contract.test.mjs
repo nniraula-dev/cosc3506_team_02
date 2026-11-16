@@ -37,3 +37,10 @@ test("production frontend configuration uses the deployed HTTPS backend", () => 
   assert.match(match[1], /^https:\/\//);
   assert.ok(!match[1].endsWith("/"), "API base URL must not have a trailing slash");
 });
+
+test("public discovery keeps a direct faculty contact action", () => {
+  const app = read("frontend/app.js");
+  assert.match(app, /data-contact-faculty/);
+  assert.match(app, /\/api\/faculty\/\$\{encodeURIComponent\(button\.dataset\.contactFaculty\)\}\/contact/);
+  assert.match(app, /mailto:/);
+});

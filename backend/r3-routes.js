@@ -210,10 +210,22 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
 
   async function matchDetail(client, matchId) {
     const result = await client.query(
-      `SELECT mp.id, mp.fixture_id, mp.state, mp.partner_agreed_in_principle,
+      `SELECT mp.id, mp.fixture_id, mp.run_id, mp.state, mp.partner_agreed_in_principle,
               mp.created_at, mp.updated_at,
               o.id AS opportunity_id, o.submission_id AS opportunity_fixture_id,
-              o.title AS opportunity_title, o.lifecycle_state,
+              o.title AS opportunity_title, o.source_type, o.lifecycle_state,
+              CASE
+                WHEN mp.run_id IS NULL THEN NOT EXISTS (
+                  SELECT 1 FROM opportunity_runs current_run
+                  WHERE current_run.opportunity_id = mp.opportunity_id
+                    AND current_run.is_current = TRUE
+                )
+                ELSE EXISTS (
+                  SELECT 1 FROM opportunity_runs current_run
+                  WHERE current_run.id = mp.run_id
+                    AND current_run.is_current = TRUE
+                )
+              END AS is_current_run,
               f.fixture_id AS faculty_fixture_id, f.display_name AS faculty_name,
               COALESCE(
                 json_agg(
@@ -300,6 +312,45 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
     return result.rows[0] || null;
   }
 
+  // Keep the public lifecycle explanation aligned with the outcome workflow.
+  // Only the completed *current* run is affected: consent changes on an old
+  // result must never overwrite the explanation for a later renewal.
+  async function refreshCompletedOutcomeReason(client, outcomeId, changedByUserId = null) {
+    const result = await client.query(
+      `SELECT oo.opportunity_id, oo.run_id,
+              oo.faculty_confirmed_by IS NOT NULL AS faculty_confirmed,
+              oo.faculty_confirmed_by IS NOT NULL
+                AND NOT EXISTS (
+                  SELECT 1 FROM outcome_participants blocked
+                  LEFT JOIN faculty blocked_faculty ON blocked_faculty.id = blocked.faculty_id
+                  WHERE blocked.outcome_id = oo.id
+                    AND (
+                      blocked.public_consent = FALSE
+                      OR (blocked.participant_kind = 'faculty' AND blocked_faculty.public_profile = FALSE)
+                    )
+                ) AS publicly_displayable
+       FROM opportunity_outcomes oo
+       WHERE oo.id = $1`,
+      [outcomeId]
+    );
+    const outcome = result.rows[0];
+    if (!outcome) return;
+
+    const opportunity = await findOpportunity(client, outcome.opportunity_id, true);
+    const run = await currentRun(client, opportunity.id, true);
+    if (
+      opportunity.lifecycle_state !== "completed"
+      || (outcome.run_id ?? null) !== (run?.id ?? null)
+    ) return;
+
+    const reason = outcome.publicly_displayable
+      ? "Work outcome confirmed and publicly displayable with every participant's consent."
+      : outcome.faculty_confirmed
+        ? "Work outcome confirmed; awaiting participant consent and public-profile eligibility."
+        : "Work outcome recorded; awaiting participant choices and faculty confirmation.";
+    await recordLifecycle(client, opportunity, run, "completed", reason, changedByUserId);
+  }
+
   /* R3-08 through R3-13: plain, non-confidential lifecycle state for a
      bookmarked or direct-linked opportunity. */
   app.get("/api/opportunities/:identifier/lifecycle", async (request, response) => {
@@ -356,6 +407,9 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
         request.body.student_ids || request.body.students
       );
       const partnerAgreed = request.body.partner_agreed_in_principle === true;
+      if (partnerAgreed && opportunity.source_type !== "industry") {
+        throw badRequest("Partner agreement applies only to industry opportunities.");
+      }
       const inserted = await client.query(
         `INSERT INTO match_proposals
           (opportunity_id, run_id, faculty_id, state, partner_agreed_in_principle)
@@ -449,6 +503,9 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
       const match = await findMatch(client, request.params.identifier, true);
       const opportunity = await findOpportunity(client, match.opportunity_id, true);
       const { run } = await refreshExpiry(client, opportunity);
+      if ((match.run_id ?? null) !== (run?.id ?? null)) {
+        throw badRequest("This proposal belongs to an earlier opportunity run and cannot be confirmed after renewal.");
+      }
       if (!["proposed", "partly-confirmed"].includes(match.state)) {
         throw badRequest("This match is no longer awaiting student confirmation.");
       }
@@ -545,6 +602,10 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
       const match = await findMatch(client, request.params.identifier);
       if (match.faculty_id !== actor.faculty.id && !actor.user.is_admin) {
         throw forbidden("Only the participating faculty member or staff can record partner agreement.");
+      }
+      const opportunity = await findOpportunity(client, match.opportunity_id);
+      if (opportunity.source_type !== "industry") {
+        throw badRequest("Partner agreement applies only to industry opportunities.");
       }
       const agreed = request.body.agreed_in_principle === true;
       await client.query(
@@ -700,6 +761,10 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
         throw badRequest("A target_term and a deadline in YYYY-MM-DD format are required.");
       }
       await client.query("BEGIN");
+      const nowForEvaluation = await evaluationDate(client);
+      if (deadline < nowForEvaluation) {
+        throw badRequest("A renewed opportunity cannot have a deadline before the configured evaluation date.");
+      }
       const opportunity = await findOpportunity(client, request.params.identifier, true);
       const previousRun = await currentRun(client, opportunity.id, true);
       if (!(await canManageOpportunity(client, actor.user, actor.faculty, opportunity.id))) {
@@ -897,6 +962,10 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
       }
       const links = validLinks(request.body.links);
       await client.query("BEGIN");
+      const nowForEvaluation = await evaluationDate(client);
+      if (completedOn > nowForEvaluation) {
+        throw badRequest("An outcome completion date cannot be later than the configured evaluation date.");
+      }
       const opportunity = await findOpportunity(client, request.params.identifier, true);
       const run = await currentRun(client, opportunity.id, true);
       const membership = await client.query(
@@ -963,6 +1032,7 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
     try {
       const actor = await requireVerifiedFaculty(client, request, response);
       if (!actor) return;
+      await client.query("BEGIN");
       const outcome = await client.query(
         `SELECT id FROM opportunity_outcomes WHERE id::text = $1 OR fixture_id = $1 FOR UPDATE`,
         [text(request.params.identifier)]
@@ -980,8 +1050,13 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
          WHERE id = $2`,
         [actor.faculty.id, outcome.rows[0].id]
       );
+      await refreshCompletedOutcomeReason(client, outcome.rows[0].id, actor.user.id);
+      await client.query("COMMIT");
       response.json({ id: outcome.rows[0].id, faculty_confirmed: true });
-    } catch (error) { responseError(response, error, "Unable to confirm outcome."); }
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      responseError(response, error, "Unable to confirm outcome.");
+    }
     finally { client.release(); }
   });
 
@@ -990,8 +1065,9 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
     try {
       const user = await requireUser(request, response);
       if (!user) return;
+      await client.query("BEGIN");
       const outcome = await client.query(
-        "SELECT id FROM opportunity_outcomes WHERE id::text = $1 OR fixture_id = $1",
+        "SELECT id FROM opportunity_outcomes WHERE id::text = $1 OR fixture_id = $1 FOR UPDATE",
         [text(request.params.identifier)]
       );
       if (!outcome.rows[0]) throw notFound("Outcome not found.");
@@ -1001,8 +1077,13 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
         "UPDATE outcome_participants SET public_consent = $1 WHERE id = $2",
         [request.body.public_consent === true, participant.id]
       );
+      await refreshCompletedOutcomeReason(client, outcome.rows[0].id, user.id);
+      await client.query("COMMIT");
       response.json({ public_consent: request.body.public_consent === true });
-    } catch (error) { responseError(response, error, "Unable to update outcome consent."); }
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      responseError(response, error, "Unable to update outcome consent.");
+    }
     finally { client.release(); }
   });
 

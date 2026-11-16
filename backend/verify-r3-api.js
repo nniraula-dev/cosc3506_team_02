@@ -111,6 +111,12 @@ async function main() {
 
   const expiredBeforeRenewal = await expect("/api/opportunities/O-302/lifecycle", {}, 200, "O-302 before renewal");
   assert(expiredBeforeRenewal.lifecycle_state === "expired", "O-302 must begin expired in the fresh fixture.");
+  await expect(
+    "/api/opportunities/O-302/renew",
+    { method: "POST", token: facultyAlex, body: { target_term: "2027W", deadline: "2020-01-01" } },
+    400,
+    "reject a renewed opportunity deadline before the evaluation date"
+  );
   const renewedExpired = await expect(
     "/api/opportunities/O-302/renew",
     { method: "POST", token: facultyAlex, body: { target_term: "2027W", deadline: "2026-12-20" } },
@@ -118,6 +124,14 @@ async function main() {
     "renew expired O-302"
   );
   assert(renewedExpired.opportunity_id === expiredBeforeRenewal.opportunity_id, "Renewal must retain O-302's opportunity identity.");
+  await expect(
+    "/api/matches/M-402/confirm",
+    { method: "POST", token: s11, body: {} },
+    400,
+    "reject a stale previous-run match confirmation after renewal"
+  );
+  const renewedLifecycle = await expect("/api/opportunities/O-302/lifecycle", {}, 200, "O-302 after stale prior-run confirmation");
+  assert(renewedLifecycle.lifecycle_state === "open", "A previous-run confirmation must not close the renewed O-302 run.");
   const completedBeforeRenewal = await expect("/api/opportunities/O-306/lifecycle", {}, 200, "O-306 before renewal");
   assert(completedBeforeRenewal.lifecycle_state === "completed", "O-306 must begin completed in the fresh fixture.");
   const renewedCompleted = await expect(
@@ -157,6 +171,12 @@ async function main() {
     "decline invited proposal"
   );
   assert(declined.state === "declined", "A declined proposal must remain a declined record.");
+  await expect(
+    `/api/matches/${matchId(declinedProposal)}/partner-agreement`,
+    { method: "PATCH", token: faculty, body: { agreed_in_principle: true } },
+    400,
+    "reject a partner agreement on a faculty-sourced opportunity"
+  );
   await expect(
     `/api/matches/${matchId(declinedProposal)}/withdraw`,
     { method: "POST", token: faculty, body: {} },
@@ -223,6 +243,16 @@ async function main() {
   console.log("✓ mutual confirmation: unauthorized attempt rejected; first confirmation partial; second confirmation matched");
 
   const summary = `R3 controlled QA outcome ${new Date().toISOString()}`;
+  await expect(
+    "/api/opportunities/O-303/outcomes",
+    {
+      method: "POST",
+      token: s01,
+      body: { summary: "Future-date rejection check", completed_on: "2030-01-01" },
+    },
+    400,
+    "reject a future outcome completion date"
+  );
   const createdOutcome = await expect(
     "/api/opportunities/O-303/outcomes",
     {
@@ -269,6 +299,8 @@ async function main() {
   );
   const publicShowcase = await expect("/api/showcase", {}, 200, "showcase after confirmation and consent");
   assert(includesOutcome(publicShowcase, summary), "A confirmed, fully consented outcome must appear on the public showcase.");
+  const publishedLifecycle = await expect("/api/opportunities/O-303/lifecycle", {}, 200, "O-303 after public outcome publication");
+  assert(/publicly displayable/i.test(publishedLifecycle.reason || ""), "The lifecycle explanation must say that the outcome is publicly displayable after confirmation and consent.");
   const studentProfile = await expect("/api/students/S01/outcomes", {}, 200, "student public profile");
   const facultyProfile = await expect("/api/faculty/F-PRIYA/outcomes", {}, 200, "faculty public profile");
   assert(includesOutcome(studentProfile, summary), "The consented outcome must appear on S01's public profile before S01 hides it.");

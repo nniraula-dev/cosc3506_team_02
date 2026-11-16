@@ -134,6 +134,30 @@ test("renewal keeps prior confirmed matches and their outcomes out of the new ru
   assert.match(routes, /\[opportunity\.id, match\.run_id, summary, completedOn/);
 });
 
+test("R4 repairs validate lifecycle history, outcome dates, source types, and shared-device sign-out", () => {
+  const r3Routes = read("backend/r3-routes.js");
+  const r2Routes = read("backend/r2-routes.js");
+  const app = read("frontend/app.js");
+  const page = read("frontend/index.html");
+  const runner = read("backend/verify-r3-api.js");
+
+  assert.match(r3Routes, /This proposal belongs to an earlier opportunity run and cannot be confirmed after renewal/);
+  assert.match(r3Routes, /A renewed opportunity cannot have a deadline before the configured evaluation date/);
+  assert.match(r3Routes, /An outcome completion date cannot be later than the configured evaluation date/);
+  assert.match(r3Routes, /Partner agreement applies only to industry opportunities/);
+  assert.match(r3Routes, /refreshCompletedOutcomeReason/);
+  assert.match(r3Routes, /Work outcome confirmed and publicly displayable with every participant's consent/);
+  assert.match(r2Routes, /o\.source_type/);
+  assert.match(app, /const sourceIsFaculty = item\.source_type === "faculty"/);
+  assert.match(app, /match\.state === "confirmed" && match\.is_current_run !== false/);
+  assert.match(app, /sessionStorage\.removeItem\(tokenKey\)/);
+  assert.match(app, /localStorage\.removeItem\(tokenKey\)/);
+  assert.match(page, /id="auth-sign-out"/);
+  assert.match(page, /Supervised opportunities/);
+  assert.match(runner, /reject a stale previous-run match confirmation after renewal/);
+  assert.match(runner, /reject a future outcome completion date/);
+});
+
 test("official R3 fixture encodes expected expiry, match, and showcase outcomes", () => {
   const fixture = JSON.parse(read("backend/r3_fixture/lifecycle_fixture.json"));
   const expected = JSON.parse(read("backend/r3_fixture/expected_lifecycle_results.json"));
