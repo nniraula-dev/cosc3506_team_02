@@ -22,9 +22,13 @@ does not claim a feature scope that was not published to the team.
 
 The local automated suite passed **24/24** checks and the frontend production
 build passed. After Supabase resumed, the deployed backend health check returned
-`200 {"ok":true,"database":"reachable"}`. The mutation-enabled deployed QA
-runner was not run against production because it changes controlled fixture
-data. The attached adapter identifies the exact controlled evaluation scenarios.
+`200 {"ok":true,"database":"reachable"}`. Render deployed the R4 branch
+merge `ff3db4d06a803b0cc027aedf11fe53c1986205a8` live; the public page showed
+the new `Supervised opportunities` heading and Sign out control, while the
+public opportunities API returned `source_type: "faculty"` for `O-305`. The
+mutation-enabled deployed QA runner was not run against production because it
+changes controlled fixture data. The attached adapter identifies the exact
+controlled evaluation scenarios.
 
 ### AI-use disclosure
 

@@ -6,8 +6,9 @@
   "repository_url": "https://github.com/nniraula-dev/cosc3506_team_02",
   "release_tag": "R4-submission",
   "release_commit": "fa34d0e821c1488a5170e09e54ab7e6f385ace94",
+  "deployed_branch_commit": "ff3db4d06a803b0cc027aedf11fe53c1986205a8",
   "scope_note": "On 2026-11-16 (Toronto), Moodle exposed Project 2 requirements through R3 but no visible R4 requirements chapter or fixture bundle. These checks document verified peer-QA repairs and do not claim an undisclosed R4 feature specification.",
-  "verification_status": "The local automated suite passed 24/24 checks and the frontend production build passed. After Supabase resumed, the deployed backend health endpoint returned 200 with database reachable. A controlled mutation-enabled deployed QA run has not been performed against production.",
+  "verification_status": "The local automated suite passed 24/24 checks and the frontend production build passed. After Supabase resumed, the deployed backend health endpoint returned 200 with database reachable. Render deployed branch commit ff3db4d06a803b0cc027aedf11fe53c1986205a8 live; the public page exposed the new Supervised opportunities heading and Sign out control, and GET /api/opportunities returned source_type faculty for O-305. A controlled mutation-enabled deployed QA run has not been performed against production.",
   "checks": [
     {
       "requirement_or_scenario": "Peer-QA repair: an old-run match cannot be confirmed after renewal",
