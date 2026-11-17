@@ -23,8 +23,12 @@ frozen R3 codebase rather than claiming undisclosed R4 requirements.
 - `npm --prefix frontend run build` completed successfully.
 - After the Supabase project was resumed, the deployed backend health endpoint
   returned `200 {"ok":true,"database":"reachable"}`.
-- The R4 code was published to `main` at the commit above; Render is configured
-  to deploy both services from `main`.
+- Render deployed the frontend branch merge
+  `ff3db4d06a803b0cc027aedf11fe53c1986205a8` live. That merge contains the
+  frozen `R4-submission` code commit above plus the submission documentation.
+- The deployed page was observed with the `Supervised opportunities` heading and
+  visible Sign out control; its public `GET /api/opportunities` response exposed
+  `source_type: "faculty"` for faculty opportunity `O-305`.
 
 ## R4 peer-QA repair record
 
@@ -46,9 +50,6 @@ frozen R3 codebase rather than claiming undisclosed R4 requirements.
 - The mutation-enabled deployed QA runner was not run against production because
   it creates and changes controlled fixture data. The adapter identifies the
   scenarios for a controlled evaluator run.
-- The frontend's final Render build should be observed at the deployment URL
-  before the Moodle submission is frozen. This file will be updated with that
-  observation once Render completes the build.
 
 ## Test accounts
 
