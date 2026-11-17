@@ -1,41 +1,63 @@
 {
-  "release": "R2",
+  "release": "R4",
+  "project_option": "Project 2 — Opportunity Registry and Pathway Platform",
   "deployment_url": "https://cosc3506-team-02-1.onrender.com",
   "backend_url": "https://cosc3506-team-02-1backend.onrender.com",
+  "repository_url": "https://github.com/nniraula-dev/cosc3506_team_02",
+  "release_tag": "R4-submission",
+  "release_commit": "fa34d0e821c1488a5170e09e54ab7e6f385ace94",
+  "scope_note": "On 2026-11-16 (Toronto), Moodle exposed Project 2 requirements through R3 but no visible R4 requirements chapter or fixture bundle. These checks document verified peer-QA repairs and do not claim an undisclosed R4 feature specification.",
+  "verification_status": "The local automated suite passed 24/24 checks and the frontend production build passed. After Supabase resumed, the deployed backend health endpoint returned 200 with database reachable. A controlled mutation-enabled deployed QA run has not been performed against production.",
   "checks": [
     {
-      "requirement_or_scenario": "R2-01 through R2-06 accountless partner intake",
-      "entry_point": "/#intake-heading and POST /api/intake",
-      "method_or_action": "Submit organisation, contact, title, description, capacity, and one or more areas without signing in",
-      "role": "public",
-      "setup": "Use the supplied R2 intake fixture once imported; submissions remain pending initially.",
-      "expected_behavior": "Valid data creates an awaiting-supervisor record; missing organisation, contact email, title, or area is rejected and partner data never appears publicly."
+      "requirement_or_scenario": "Peer-QA repair: an old-run match cannot be confirmed after renewal",
+      "entry_point": "POST /api/opportunities/{opportunityId}/renew; POST /api/matches/{matchId}/confirm; GET /api/opportunities/{opportunityId}/lifecycle",
+      "method_or_action": "Renew an expired opportunity, then attempt to confirm a match proposal belonging to its previous run.",
+      "role": "verified faculty and an invited student",
+      "setup": "Use a disposable/reset R3 fixture copy with an expired opportunity and an invited match from its prior run.",
+      "expected_behavior": "The old proposal confirmation is rejected, and the new opportunity run remains open rather than becoming matched."
     },
     {
-      "requirement_or_scenario": "R2-07 through R2-15 faculty supervision and coordination",
-      "entry_point": "/api/faculty/opportunities, PUT /api/opportunities/{id}/willingness, and PUT /api/opportunities/{id}/engagement",
-      "method_or_action": "Verified faculty signs in, records willingness, and optionally records engagement.",
-      "role": "verified faculty",
-      "setup": "Use a linked, verified faculty fixture account through the passwordless test-mode flow.",
-      "expected_behavior": "First willingness publishes the opportunity, additional willingness remains allowed, visible interest count is updated, and withdrawing the last willingness returns it to awaiting-supervisor."
+      "requirement_or_scenario": "Peer-QA repair: dates respect the configured evaluation date",
+      "entry_point": "POST /api/opportunities/{opportunityId}/renew; POST /api/opportunities/{opportunityId}/outcomes",
+      "method_or_action": "Attempt a renewal deadline before the fixture evaluation date and an outcome completion date after that date.",
+      "role": "verified faculty and a participating student",
+      "setup": "Use the controlled R3 fixture's configured evaluation date rather than the wall-clock date.",
+      "expected_behavior": "Both invalid dates are rejected with clear validation errors and no invalid lifecycle state is created."
     },
     {
-      "requirement_or_scenario": "R2-16 through R2-20 subscriptions and notifications",
-      "entry_point": "/api/faculty/me/subscriptions and /api/faculty/me/notifications",
-      "method_or_action": "Save all-area or selected-area subscriptions, then submit a matching opportunity.",
-      "role": "verified faculty",
-      "setup": "Save a subscription before submitting the matching intake fixture.",
-      "expected_behavior": "An in-product notification is created for matching future submissions; settings and notifications remain faculty-private."
+      "requirement_or_scenario": "Peer-QA repair: faculty-source and industry opportunity rules stay distinct",
+      "entry_point": "PATCH /api/matches/{matchId}/partner-agreement; deployed faculty and public opportunity cards",
+      "method_or_action": "Attempt to record a partner agreement for a faculty-source opportunity, then inspect labels and controls for both source types.",
+      "role": "verified faculty and public visitor",
+      "setup": "Use one faculty-source opportunity and one industry opportunity from a controlled fixture.",
+      "expected_behavior": "Partner agreement is refused for a faculty-source opportunity and remains available only for industry opportunities; each source type is labelled accurately."
     },
     {
-      "requirement_or_scenario": "R2-21 through R2-25 student discovery and authorization",
-      "entry_point": "/api/opportunities and the deployed discovery page",
-      "method_or_action": "Browse while logged out; compare pending versus supervised opportunity visibility.",
-      "role": "public/student",
-      "setup": "At least one opportunity has a verified faculty supervisor; use an unverified account for negative authorization checks.",
-      "expected_behavior": "Only supervised opportunities appear, students see the opportunity source and supervisors rather than partner contacts, and an unverified user receives 403 for coordination routes."
+      "requirement_or_scenario": "Peer-QA repair: outcome availability explanations refresh after confirmation and consent",
+      "entry_point": "POST /api/outcomes/{outcomeId}/faculty-confirm; PATCH /api/outcomes/{outcomeId}/consent; GET /api/opportunities/{opportunityId}/lifecycle",
+      "method_or_action": "Confirm a completed outcome and record required participant consent, then inspect its safe lifecycle explanation.",
+      "role": "participating verified faculty and participating students",
+      "setup": "Use a controlled completed-outcome fixture with all required participants available.",
+      "expected_behavior": "The current completed run receives an updated public-availability explanation only after the required confirmation, consent, and public-profile conditions are satisfied."
+    },
+    {
+      "requirement_or_scenario": "Peer-QA repair: sign-out clears current and legacy client sessions",
+      "entry_point": "Deployed authentication panel",
+      "method_or_action": "Sign in through the passwordless test-mode flow, select Sign out, then refresh the page.",
+      "role": "authenticated user",
+      "setup": "Use an instructor-approved non-production test account.",
+      "expected_behavior": "Authenticated workspace controls disappear and both sessionStorage and the former localStorage session location are cleared."
+    },
+    {
+      "requirement_or_scenario": "Peer-QA repair: public discovery offers the safe faculty-contact action",
+      "entry_point": "Deployed public discovery cards; GET /api/faculty/{fixtureId}/contact",
+      "method_or_action": "Browse public projects or faculty cards and select the faculty-contact action for an eligible public faculty profile.",
+      "role": "public visitor",
+      "setup": "Use an opportunity or faculty card associated with a public faculty profile.",
+      "expected_behavior": "The contact action uses the existing safe contact endpoint and exposes no partner contact information."
     }
   ],
-  "fixture_setup": "Run schema.sql against Supabase, seed the existing R1 fixture, then use npm --prefix backend run seed:r2 to import the tracked official R2 fixture bundle. The importer intentionally replaces only the accepted official fixture submission IDs, so use it for a controlled fixture reset rather than routine production operation. Do not deduplicate submissions by organisation or title; submission identifiers are the only fixture identity.",
-  "test_access": "Use the instructor-approved passwordless test-mode challenge. Provide linked verified-faculty, unverified-faculty, and staff/admin account details only in the approved private course channel; no passwords or tokens are committed."
+  "fixture_setup": "Use a disposable or evaluator-controlled R3 fixture database. Apply schema.sql, then use the repository's controlled R1/R2 setup followed by npm --prefix backend run seed:r3. Do not use mutation-enabled fixture seeding or the deployed QA runner against shared production data without explicit authorization and an isolated reset plan.",
+  "test_access": "Use instructor-approved passwordless test-mode accounts. Provide verified-faculty, invited-student, uninvolved-student, and staff/admin fixture access only through the approved private course channel; do not commit passwords, tokens, challenge codes, or database credentials."
 }
