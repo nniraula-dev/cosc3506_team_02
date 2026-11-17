@@ -143,17 +143,27 @@ function jsonOptions(body) {
   };
 }
 
+function contactAction(facultyFixtureId) {
+  if (!facultyFixtureId) return "";
+  return `<p class="actions"><button type="button" class="secondary" data-contact-faculty="${escapeHtml(facultyFixtureId)}">Show faculty contact</button><span class="meta" data-contact-result aria-live="polite"></span></p>`;
+}
+
 function projectCard(project) {
-  return `<article class="card"><p class="eyebrow">Faculty project</p><h3>${escapeHtml(project.title)}</h3><p>${escapeHtml(project.description || "No project description provided.")}</p><p class="meta"><strong>Faculty:</strong> ${escapeHtml(project.faculty_name)}</p><p class="meta">${escapeHtml(project.student_level)} · ${escapeHtml(project.term)}</p><div>${tags(project.areas)}</div><p class="preference">${escapeHtml(inquiryText(project.inquiry_preference))}</p></article>`;
+  return `<article class="card"><p class="eyebrow">Faculty project</p><h3>${escapeHtml(project.title)}</h3><p>${escapeHtml(project.description || "No project description provided.")}</p><p class="meta"><strong>Faculty:</strong> ${escapeHtml(project.faculty_name)}</p><p class="meta">${escapeHtml(project.student_level)} · ${escapeHtml(project.term)}</p><div>${tags(project.areas)}</div><p class="preference">${escapeHtml(inquiryText(project.inquiry_preference))}</p>${contactAction(project.faculty_fixture_id)}</article>`;
 }
 
 function opportunityCard(item) {
+  const sourceIsFaculty = item.source_type === "faculty";
+  const sourceLabel = sourceIsFaculty ? "Faculty opportunity" : "Industry opportunity";
+  const sourceDetail = sourceIsFaculty
+    ? "Faculty source"
+    : `<strong>Organisation:</strong> ${escapeHtml(item.organisation_name)}`;
   const supervisors = (item.supervisors || [])
     .filter((person) => person.public_profile || token())
     .map((person) => publicProfileLink(person, "faculty"))
     .join(", ") || "Faculty supervisor available";
   const schedule = [item.target_term && `Target term: ${escapeHtml(item.target_term)}`, item.application_deadline && `Apply by ${dateText(item.application_deadline)}`].filter(Boolean).join(" · ");
-  return `<article class="card industry-card"><p class="eyebrow">Industry opportunity</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p><p class="meta"><strong>Organisation:</strong> ${escapeHtml(item.organisation_name)}</p><p class="meta"><strong>Capacity:</strong> ${escapeHtml(String(item.capacity || "").replaceAll("-", " "))}</p><p class="meta"><strong>Faculty support:</strong> ${supervisors}</p>${schedule ? `<p class="meta"><strong>${schedule}</strong></p>` : ""}<p class="meta">${statePill("open")} Currently available for a new match</p><div>${tags(item.areas)}</div></article>`;
+  return `<article class="card ${sourceIsFaculty ? "faculty-card" : "industry-card"}"><p class="eyebrow">${sourceLabel}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p><p class="meta">${sourceDetail}</p><p class="meta"><strong>Capacity:</strong> ${escapeHtml(String(item.capacity || "").replaceAll("-", " "))}</p><p class="meta"><strong>Faculty support:</strong> ${supervisors}</p>${schedule ? `<p class="meta"><strong>${schedule}</strong></p>` : ""}<p class="meta">${statePill("open")} Currently available for a new match</p><div>${tags(item.areas)}</div></article>`;
 }
 
 function showcaseCard(outcome) {
@@ -188,13 +198,31 @@ async function loadDiscovery() {
       ? opportunities.map(opportunityCard).join("")
       : '<p class="empty">No currently available supervised opportunities match this filter.</p>';
     $("#faculty").innerHTML = faculty.length
-      ? faculty.map((person) => `<article class="card faculty-card"><h3>${publicProfileLink(person, "faculty")}</h3><p>${escapeHtml(person.bio || "Faculty research information available.")}</p><div>${tags(person.areas)}</div><p class="preference">${escapeHtml(inquiryText(person.inquiry_preference))}</p></article>`).join("")
+      ? faculty.map((person) => `<article class="card faculty-card"><h3>${publicProfileLink(person, "faculty")}</h3><p>${escapeHtml(person.bio || "Faculty research information available.")}</p><div>${tags(person.areas)}</div><p class="preference">${escapeHtml(inquiryText(person.inquiry_preference))}</p>${contactAction(person.fixture_id)}</article>`).join("")
       : '<p class="empty">No faculty match this filter.</p>';
+    bindContactActions();
     show($("#status"), "Opportunities loaded.");
   } catch {
     show($("#status"), "Could not load opportunities. Please try again shortly.", true);
   }
   await loadShowcase();
+}
+
+function bindContactActions() {
+  document.querySelectorAll("[data-contact-faculty]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const result = button.parentElement?.querySelector("[data-contact-result]");
+      try {
+        const contact = await request(`/api/faculty/${encodeURIComponent(button.dataset.contactFaculty)}/contact`);
+        const email = String(contact.email || "").trim();
+        if (!email) throw new Error("Faculty contact details are unavailable.");
+        const address = encodeURIComponent(email);
+        result.innerHTML = ` <a href="mailto:${address}">Email ${escapeHtml(contact.display_name || email)}</a>`;
+      } catch (error) {
+        show(result, error.message, true);
+      }
+    });
+  });
 }
 
 async function refreshAfterMutation() {
@@ -224,9 +252,11 @@ function studentList(match) {
 
 function studentMatchCard(match, student) {
   const myResponse = (match.students || []).find((item) => item.fixture_id && item.fixture_id === student?.fixture_id);
-  const canRespond = myResponse?.response_state === "pending" && ["proposed", "partly-confirmed"].includes(match.state);
+  const currentRun = match.is_current_run !== false;
+  const canRespond = currentRun && myResponse?.response_state === "pending" && ["proposed", "partly-confirmed"].includes(match.state);
   const id = match.fixture_id || match.id;
-  return `<article class="card match-card"><p class="eyebrow">Match invitation</p><h3>${escapeHtml(match.opportunity_title)}</h3><p>${statePill(match.state)}</p><p class="meta"><strong>Faculty:</strong> ${escapeHtml(match.faculty_name)}</p><p class="meta"><strong>Responses so far:</strong></p>${studentList(match)}${canRespond ? `<div class="actions"><button type="button" data-student-match-action="confirm" data-match-id="${escapeHtml(id)}">Confirm my interest</button><button type="button" class="secondary" data-student-match-action="decline" data-match-id="${escapeHtml(id)}">Decline</button></div>` : ""}</article>`;
+  const priorRunNotice = currentRun ? "" : '<p class="meta">This invitation belongs to a prior opportunity run and can no longer be answered.</p>';
+  return `<article class="card match-card"><p class="eyebrow">Match invitation</p><h3>${escapeHtml(match.opportunity_title)}</h3><p>${statePill(match.state)}</p><p class="meta"><strong>Faculty:</strong> ${escapeHtml(match.faculty_name)}</p><p class="meta"><strong>Responses so far:</strong></p>${studentList(match)}${priorRunNotice}${canRespond ? `<div class="actions"><button type="button" data-student-match-action="confirm" data-match-id="${escapeHtml(id)}">Confirm my interest</button><button type="button" class="secondary" data-student-match-action="decline" data-match-id="${escapeHtml(id)}">Decline</button></div>` : ""}</article>`;
 }
 
 function outcomeCard(outcome, role) {
@@ -242,13 +272,30 @@ function outcomeCard(outcome, role) {
 function facultyMatchCard(match) {
   const id = match.fixture_id || match.id;
   const canWithdraw = ["proposed", "partly-confirmed"].includes(match.state);
-  return `<article class="card match-card"><p class="eyebrow">Match record</p><p>${statePill(match.state)}</p><p class="meta"><strong>Students:</strong></p>${studentList(match)}<div class="actions">${canWithdraw ? `<button type="button" class="secondary" data-withdraw-match="${escapeHtml(id)}">Withdraw proposal</button>` : ""}<button type="button" class="secondary" data-partner-agreement="${escapeHtml(id)}">Record partner agreement in principle</button></div></article>`;
+  const partnerAgreement = match.source_type === "industry"
+    ? `<button type="button" class="secondary" data-partner-agreement="${escapeHtml(id)}">Record partner agreement in principle</button>`
+    : "";
+  return `<article class="card match-card"><p class="eyebrow">Match record</p><p>${statePill(match.state)}</p><p class="meta"><strong>Students:</strong></p>${studentList(match)}<div class="actions">${canWithdraw ? `<button type="button" class="secondary" data-withdraw-match="${escapeHtml(id)}">Withdraw proposal</button>` : ""}${partnerAgreement}</div></article>`;
 }
 
 function facultyOpportunityCard(item, lifecycle, matches) {
   const identifier = opportunityIdentifier(item);
   const matching = matches.filter((match) => String(match.opportunity_id) === String(item.id) || match.opportunity_fixture_id === identifier);
   const lifecycleState = lifecycle.lifecycle_state || "unknown";
+  const isIndustry = item.source_type === "industry";
+  const sourceLabel = isIndustry ? "Industry opportunity" : "Faculty opportunity";
+  const sourceDetails = isIndustry
+    ? `<p class="meta"><strong>Partner:</strong> ${escapeHtml(item.organisation_name)} · ${escapeHtml(item.contact_name)} · ${escapeHtml(item.contact_email)}</p>`
+    : '<p class="meta"><strong>Source:</strong> Faculty opportunity</p>';
+  const engagementDetails = isIndustry
+    ? `<p class="meta"><strong>Engagement:</strong> ${escapeHtml(String(item.engagement_state || "").replaceAll("-", " "))}${item.engagement_faculty_name ? ` — ${escapeHtml(item.engagement_faculty_name)}` : ""}</p>`
+    : "";
+  const engagementControl = isIndustry
+    ? `<select data-engagement="${escapeHtml(item.id)}" aria-label="Partner engagement for ${escapeHtml(item.title)}"><option value="not-contacted">Not contacted</option><option value="discussion-underway">Discussion underway</option><option value="partner-confirmed">Partner confirmed</option><option value="no-longer-pursuing">No longer pursuing</option></select>`
+    : "";
+  const partnerAgreementChoice = isIndustry
+    ? '<label><input name="partner_agreed_in_principle" type="checkbox"> I record that the industry partner has agreed in principle</label>'
+    : "";
   const canPropose = lifecycleState === "open";
   const canSchedule = lifecycleState === "open";
   const canRenew = ["expired", "completed"].includes(lifecycleState);
@@ -257,18 +304,28 @@ function facultyOpportunityCard(item, lifecycle, matches) {
     : lifecycleState === "matched"
       ? '<option value="completed">Completed</option><option value="archived">Archived</option>'
       : '<option value="withdrawn">Withdrawn</option><option value="completed">Completed</option><option value="archived">Archived</option>';
-  return `<article class="card"><p class="eyebrow">${item.status === "supervised" ? "Student-visible intake" : "Awaiting faculty supervisor"}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p><p class="meta"><strong>Partner:</strong> ${escapeHtml(item.organisation_name)} · ${escapeHtml(item.contact_name)} · ${escapeHtml(item.contact_email)}</p><p class="meta"><strong>Capacity:</strong> ${escapeHtml(String(item.capacity || "").replaceAll("-", " "))} · <strong>Faculty interest:</strong> ${escapeHtml(item.willingness_count)}</p><p class="meta"><strong>Engagement:</strong> ${escapeHtml(String(item.engagement_state || "").replaceAll("-", " "))}${item.engagement_faculty_name ? ` — ${escapeHtml(item.engagement_faculty_name)}` : ""}</p><div>${tags(item.areas)}</div><section class="notice"><p><strong>Lifecycle:</strong> ${statePill(lifecycleState)} ${lifecycle.target_term ? `· ${escapeHtml(lifecycle.target_term)}` : ""} ${lifecycle.deadline ? `· deadline ${dateText(lifecycle.deadline)}` : ""}</p><p class="meta">${escapeHtml(lifecycle.reason || "No lifecycle note has been recorded.")}</p></section><div class="actions"><button type="button" data-willing="${escapeHtml(item.id)}">I can supervise</button><button type="button" data-withdraw="${escapeHtml(item.id)}" class="secondary">Withdraw willingness</button><select data-engagement="${escapeHtml(item.id)}" aria-label="Partner engagement for ${escapeHtml(item.title)}"><option value="not-contacted">Not contacted</option><option value="discussion-underway">Discussion underway</option><option value="partner-confirmed">Partner confirmed</option><option value="no-longer-pursuing">No longer pursuing</option></select></div>${canSchedule ? `<form class="fields" data-schedule-form="${escapeHtml(identifier)}"><div><label>Target term<input name="target_term" value="${escapeHtml(lifecycle.target_term || "")}" placeholder="2027W" required></label></div><div><label>Application deadline<input name="deadline" type="date" value="${escapeHtml(String(lifecycle.deadline || "").slice(0, 10))}" required></label></div><div class="wide"><p class="meta">After you add yourself as a supervisor, set the current term and application deadline before proposing a match.</p><button type="submit">Save term and deadline</button></div></form>` : ""}<form class="stack" data-lifecycle-form="${escapeHtml(identifier)}"><label>Lifecycle change<select name="lifecycle_state">${lifecycleChoices}</select></label><label>Reason (optional)<input name="reason"></label><button type="submit" class="secondary">Update lifecycle</button></form>${canRenew ? `<form class="fields" data-renew-form="${escapeHtml(identifier)}"><div><label>Renewal term<input name="target_term" placeholder="2027W" required></label></div><div><label>New deadline<input name="deadline" type="date" required></label></div><div class="wide"><button type="submit">Renew for a later term</button></div></form>` : ""}${canPropose ? `<form class="stack" data-propose-match="${escapeHtml(identifier)}"><label>Invite students (student references or Algoma emails, comma-separated)<input name="students" required></label><label><input name="partner_agreed_in_principle" type="checkbox"> I record that the industry partner has agreed in principle</label><button type="submit">Propose match</button></form>` : ""}${matching.length ? `<section><h3>Match records</h3><div class="stack">${matching.map(facultyMatchCard).join("")}</div></section>` : ""}</article>`;
+  return `<article class="card"><p class="eyebrow">${sourceLabel} · ${item.status === "supervised" ? "Student-visible" : "Awaiting faculty supervisor"}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p>${sourceDetails}<p class="meta"><strong>Capacity:</strong> ${escapeHtml(String(item.capacity || "").replaceAll("-", " "))} · <strong>Faculty interest:</strong> ${escapeHtml(item.willingness_count)}</p>${engagementDetails}<div>${tags(item.areas)}</div><section class="notice"><p><strong>Lifecycle:</strong> ${statePill(lifecycleState)} ${lifecycle.target_term ? `· ${escapeHtml(lifecycle.target_term)}` : ""} ${lifecycle.deadline ? `· deadline ${dateText(lifecycle.deadline)}` : ""}</p><p class="meta">${escapeHtml(lifecycle.reason || "No lifecycle note has been recorded.")}</p></section><div class="actions"><button type="button" data-willing="${escapeHtml(item.id)}">I can supervise</button><button type="button" data-withdraw="${escapeHtml(item.id)}" class="secondary">Withdraw willingness</button>${engagementControl}</div>${canSchedule ? `<form class="fields" data-schedule-form="${escapeHtml(identifier)}"><div><label>Target term<input name="target_term" value="${escapeHtml(lifecycle.target_term || "")}" placeholder="2027W" required></label></div><div><label>Application deadline<input name="deadline" type="date" value="${escapeHtml(String(lifecycle.deadline || "").slice(0, 10))}" required></label></div><div class="wide"><p class="meta">After you add yourself as a supervisor, set the current term and application deadline before proposing a match.</p><button type="submit">Save term and deadline</button></div></form>` : ""}<form class="stack" data-lifecycle-form="${escapeHtml(identifier)}"><label>Lifecycle change<select name="lifecycle_state">${lifecycleChoices}</select></label><label>Reason (optional)<input name="reason"></label><button type="submit" class="secondary">Update lifecycle</button></form>${canRenew ? `<form class="fields" data-renew-form="${escapeHtml(identifier)}"><div><label>Renewal term<input name="target_term" placeholder="2027W" required></label></div><div><label>New deadline<input name="deadline" type="date" required></label></div><div class="wide"><button type="submit">Renew for a later term</button></div></form>` : ""}${canPropose ? `<form class="stack" data-propose-match="${escapeHtml(identifier)}"><label>Invite students (student references or Algoma emails, comma-separated)<input name="students" required></label>${partnerAgreementChoice}<button type="submit">Propose match</button></form>` : ""}${matching.length ? `<section><h3>Match records</h3><div class="stack">${matching.map(facultyMatchCard).join("")}</div></section>` : ""}</article>`;
+}
+
+function clearAuthenticatedWorkspace() {
+  sessionStorage.removeItem(tokenKey);
+  // Clear a token from the pre-R3 storage location as well, so signing out is
+  // reliable on a shared computer after an older deployment was used.
+  localStorage.removeItem(tokenKey);
+  activeProfile = null;
+  $("#student-workspace").hidden = true;
+  $("#faculty-workspace").hidden = true;
+  $("#auth-sign-out").hidden = true;
 }
 
 async function loadAuthenticatedWorkspace() {
   if (!token()) {
-    $("#student-workspace").hidden = true;
-    $("#faculty-workspace").hidden = true;
-    activeProfile = null;
+    clearAuthenticatedWorkspace();
     return;
   }
   try {
     activeProfile = await request("/api/me");
+    $("#auth-sign-out").hidden = false;
     if (activeProfile.faculty?.verified_faculty) {
       $("#student-workspace").hidden = true;
       await facultyWorkspace(activeProfile);
@@ -277,8 +334,7 @@ async function loadAuthenticatedWorkspace() {
       await studentWorkspace(activeProfile);
     }
   } catch (error) {
-    $("#student-workspace").hidden = true;
-    $("#faculty-workspace").hidden = true;
+    clearAuthenticatedWorkspace();
     show($("#auth-result"), error.message, true);
   }
 }
@@ -318,7 +374,7 @@ async function studentWorkspace(profile) {
 
 function fillOutcomeChoices(matches) {
   const select = $("#outcome-opportunity");
-  const confirmed = (matches || []).filter((match) => match.state === "confirmed");
+  const confirmed = (matches || []).filter((match) => match.state === "confirmed" && match.is_current_run !== false);
   const choices = [...new Map(confirmed.map((match) => [match.opportunity_fixture_id || match.opportunity_id, match])).values()];
   select.innerHTML = choices.length
     ? choices.map((match) => `<option value="${escapeHtml(match.opportunity_fixture_id || match.opportunity_id)}">${escapeHtml(match.opportunity_title)}</option>`).join("")
@@ -401,7 +457,7 @@ async function facultyWorkspace(profile) {
       : "<li>No matching intake notifications yet.</li>";
     $("#faculty-opportunities").innerHTML = opportunities.length
       ? opportunities.map((item, index) => facultyOpportunityCard(item, lifecycle[index], matches)).join("")
-      : '<p class="empty">No industry opportunities have been submitted.</p>';
+      : '<p class="empty">No opportunities have been submitted.</p>';
     $("#faculty-outcomes").innerHTML = outcomes.length
       ? outcomes.map((outcome) => outcomeCard(outcome, "faculty")).join("")
       : '<p class="empty">No outcomes involving you yet.</p>';
@@ -615,6 +671,13 @@ $("#auth-verify").addEventListener("click", async () => {
   } catch (error) {
     show($("#auth-result"), error.message, true);
   }
+});
+
+$("#auth-sign-out").addEventListener("click", async () => {
+  clearAuthenticatedWorkspace();
+  $("#auth-code").value = "";
+  show($("#auth-result"), "Signed out. This browser no longer keeps your session token.");
+  await loadDiscovery();
 });
 
 $("#student-profile-form").addEventListener("submit", async (event) => {

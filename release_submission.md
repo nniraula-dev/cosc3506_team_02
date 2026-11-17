@@ -1,27 +1,58 @@
 # Release Submission
 
-Release: R2
+Release: R4
 Team: Nitesh Niraula, Sushrit Aryal, Chirag Kaushal
-Project Option: Project 2
+Project Option: Project 2 — Opportunity Registry and Pathway Platform
 Deployment: https://cosc3506-team-02-1.onrender.com
 Backend: https://cosc3506-team-02-1backend.onrender.com
 Repository: https://github.com/nniraula-dev/cosc3506_team_02
-Release tag: R2-submission
-Commit: 28a11586df00235bb3d022b9ddc446ed6d8d5e84 (the immutable commit identified by `R2-submission`).
-Adapter: evaluation_adapter.json
-Known issues: The assessed `R2-submission` tag was created before the official fixture bundle was located and before the post-freeze frontend backend-URL correction. The tag must not be retargeted. Post-freeze repair commits track and seed the official bundle, including S-201 through S-206, and configure the deployed frontend to use the confirmed Web Service URL.
-Test notes: On 2026-10-16, the live backend health endpoint returned `200 {"ok":true,"database":"reachable"}` and the deployed public discovery endpoints returned HTTP 200. Local verification used the real Supabase database and the instructor-approved passwordless test mode.
+Release tag: `R4-submission`
+Commit: `fa34d0e821c1488a5170e09e54ab7e6f385ace94`
+Adapter: `evaluation_adapter.json`
+
+## Scope record
+
+On 2026-11-16 (Toronto), Moodle's Project 2 requirements book exposed R1
+through R3 but did not expose a Project 2 R4 requirements chapter or R4 fixture
+bundle. This release therefore addresses documented peer-QA repairs on the
+frozen R3 codebase rather than claiming undisclosed R4 requirements.
+
+## Evidence observed before release
+
+- The local automated suite passed **24/24** checks.
+- `npm --prefix frontend run build` completed successfully.
+- After the Supabase project was resumed, the deployed backend health endpoint
+  returned `200 {"ok":true,"database":"reachable"}`.
+- The R4 code was published to `main` at the commit above; Render is configured
+  to deploy both services from `main`.
+
+## R4 peer-QA repair record
+
+- A student cannot confirm a match from an earlier opportunity run after that
+  opportunity has been renewed.
+- Renewed opportunity deadlines cannot precede the configured evaluation date,
+  and outcome completion dates cannot be in that evaluation date's future.
+- Partner agreement is restricted to industry opportunities; faculty-source
+  opportunities are identified consistently in the faculty and public UI.
+- Completed-outcome availability explanations refresh after faculty confirmation
+  and participant consent changes.
+- Sign-out clears the current and legacy browser session locations.
+- Public discovery exposes the existing safe faculty-contact action.
+
+## Known issues and verification limits
+
+- Moodle's Project 2 R4 requirements and fixture bundle were not visible at
+  release preparation time; this is documented above rather than inferred.
+- The mutation-enabled deployed QA runner was not run against production because
+  it creates and changes controlled fixture data. The adapter identifies the
+  scenarios for a controlled evaluator run.
+- The frontend's final Render build should be observed at the deployment URL
+  before the Moodle submission is frozen. This file will be updated with that
+  observation once Render completes the build.
 
 ## Test accounts
 
-Provide linked verified-faculty, unverified-faculty, and staff/admin fixture account details through the approved private course channel. The ordinary sign-in flow accepts only `@algomau.ca` addresses and returns a short-lived one-time code in instructor-approved test mode. No password, token, or database credential is committed here.
-
-## Release-specific evidence
-
-- R2 tables are created by `schema.sql`: industry intake, areas, supervisors, private subscriptions, and in-product notifications. `npm --prefix backend run seed:r2` loads the official tracked R2 fixture bundle deterministically; `npm --prefix backend run verify:r2` is a read-only comparison of stored fixture status, areas, capacity, rejection, and notification recipients.
-- Valid accountless intake starts in `awaiting-supervisor`; required fields are validated before insert.
-- Verified faculty can see partner contact details, record non-exclusive willingness, record engagement, and alter private subscriptions. First willingness changes the opportunity to `supervised`; last withdrawal returns it to pending.
-- Public discovery exposes only supervised opportunities and omits partner contact/engagement fields. Faculty-created R1 projects and faculty discovery remain available.
-- Notifications are delivered as a private in-product list and do not gate browsing.
-- Local end-to-end checks passed for validation, private access, first/second supervisor, engagement, both withdrawal transitions, unverified-user denial, public field redaction, exact fixture state, and exact notification recipients.
-- `evaluation_adapter.json` maps the deployed R2 interfaces and required test setup.
+Use instructor-approved passwordless test-mode accounts only. Provide the
+linked verified-faculty, invited-student, uninvolved-student, and staff/admin
+fixture identities through the approved private course channel. No passwords,
+tokens, challenge codes, or database credentials are committed here.
