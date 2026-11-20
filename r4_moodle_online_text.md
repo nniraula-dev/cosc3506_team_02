@@ -2,8 +2,9 @@
 
 **Chosen challenge:** R4-20 — Interest survives synchronisation
 **Repository:** https://github.com/nniraula-dev/cosc3506_team_02
-**Assessed tag:** `R4-submission` — pending final commit and deployment
-**Deployment / backend:** pending deployment of the current R4 implementation
+**Assessed tag:** `R4-submission` — final tagged commit on `project2-r1`
+**Deployment:** https://cosc3506-team-02-1.onrender.com
+**Backend:** https://cosc3506-team-02-1backend.onrender.com
 
 ### What changed
 
@@ -26,8 +27,10 @@ support persists when a source record changes, disappears, and reappears.
 
 ### Evaluator instructions
 
-1. Apply `schema.sql`, seed the controlled R1/R2/R3 fixture data, and start
-   the backend in a disposable or reset-controlled environment.
+1. For a fresh evaluator database, apply `schema.sql`, seed the controlled
+   R1/R2/R3 fixture data, and start the backend in a disposable or
+   reset-controlled environment. For an existing R1–R3 database, use the
+   additive `r4_migration.sql`.
 2. Sign in with the approved staff/operator fixture account and use
    **External-source operations** to run Mitacs fixture v1, then v2.
 3. To simulate a provider failure, use **Simulate provider failure**. Confirm
@@ -43,9 +46,10 @@ support persists when a source record changes, disappears, and reappears.
 ### Verification status
 
 The local automated suite passed **29/29** checks and the frontend production
-build completed. This workspace has no database configuration, so the
-database-backed synchronization sequence and deployment have not yet been run.
-The prior deployment and tag documented only R3 repairs; they are not claimed
-as evidence for this implementation.
+build completed. The additive R4 migration has been applied to the deployed
+database; deployed `/api/health`, public `/api/opportunities`, and authenticated
+operator R4 health/run endpoints all returned HTTP 200. The mutation-enabled
+fixture sync sequence was intentionally left for the teammate's controlled
+peer-QA environment rather than seeding shared production data.
 
 Attached: `release_submission.md` and `evaluation_adapter.json`.

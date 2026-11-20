@@ -2,12 +2,12 @@
   "release": "R4",
   "project_option": "Project 2 — Opportunity Registry and Pathway Platform",
   "chosen_challenge": "R4-20 — Interest survives synchronisation",
-  "deployment_url": "PENDING_DEPLOYMENT_OF_CURRENT_R4_COMMIT",
-  "backend_url": "PENDING_DEPLOYMENT_OF_CURRENT_R4_COMMIT",
+  "deployment_url": "https://cosc3506-team-02-1.onrender.com",
+  "backend_url": "https://cosc3506-team-02-1backend.onrender.com",
   "repository_url": "https://github.com/nniraula-dev/cosc3506_team_02",
-  "release_tag": "R4-submission (move after final assessed commit)",
-  "release_commit": "PENDING_LOCAL_COMMIT",
-  "verification_status": "Local static and regression suite passed 29/29 checks and the frontend build passed. This workspace has no DATABASE_URL, so the database-backed adapter has not yet been run here. Do not represent the previous R3-only deployment as this R4 implementation.",
+  "release_tag": "R4-submission (final tagged commit on project2-r1)",
+  "release_commit": "R4-submission",
+  "verification_status": "Local static and regression suite passed 29/29 checks and the frontend build passed. The additive R4 migration was applied to the deployed Supabase database; deployed backend health, public discovery, and authenticated R4 health/run smoke endpoints returned HTTP 200. The mutation-enabled fixture sequence was intentionally not run against shared production data.",
   "sync_trigger": {
     "operator_ui": "Sign in as the staff operator and select Run Mitacs fixture v1 or v2 in External-source operations.",
     "api": "POST /api/external-sync with {\"fixture\":\"v1\"} or {\"fixture\":\"v2\"}; server-side operator authorization is required.",
@@ -47,6 +47,6 @@
       "expected_behavior": "External records are not expired by Algoma timing; non-operators cannot trigger or inspect sync health; prior release workflows continue to work."
     }
   ],
-  "fixture_setup": "Use a disposable or evaluator-controlled database. Apply schema.sql, then run node backend/seed-r1.js, npm --prefix backend run seed:r2, and npm --prefix backend run seed:r3. Run R4 QA only with a reset plan; never run mutation-enabled fixture checks against shared production data.",
+  "fixture_setup": "Use a disposable or evaluator-controlled database. For a fresh database, apply schema.sql, then run node backend/seed-r1.js, npm --prefix backend run seed:r2, and npm --prefix backend run seed:r3. For an existing R1–R3 database, apply r4_migration.sql. Run R4 QA only with a reset plan; never run mutation-enabled fixture checks against shared production data.",
   "test_access": "Use instructor-approved passwordless test-mode accounts. The R3 fixture includes r3.staff@algomau.ca as operator and the linked R3 faculty accounts. Do not commit passwords, tokens, challenge codes, or database credentials."
 }
