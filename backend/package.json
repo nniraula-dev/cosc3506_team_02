@@ -6,7 +6,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node server.js",
+    "start": "node apply-r4-migration.js && node server.js",
+    "r4:migrate": "node apply-r4-migration.js",
     "schema:apply": "node apply-schema.js",
     "seed:r2": "node seed-r2.js",
     "verify:r2": "node verify-r2-fixture.js",
