@@ -56,6 +56,16 @@ function safeLinks(links) {
   }).join(" · ");
 }
 
+function safeExternalLink(value, label) {
+  try {
+    const url = new URL(value);
+    if (!['https:', 'http:'].includes(url.protocol)) return '';
+    return `<a href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+  } catch {
+    return '';
+  }
+}
+
 function people(items) {
   return (items || []).map((person) => escapeHtml(person.display_name)).join(", ") || "Not publicly listed";
 }
@@ -152,7 +162,29 @@ function projectCard(project) {
   return `<article class="card"><p class="eyebrow">Faculty project</p><h3>${escapeHtml(project.title)}</h3><p>${escapeHtml(project.description || "No project description provided.")}</p><p class="meta"><strong>Faculty:</strong> ${escapeHtml(project.faculty_name)}</p><p class="meta">${escapeHtml(project.student_level)} · ${escapeHtml(project.term)}</p><div>${tags(project.areas)}</div><p class="preference">${escapeHtml(inquiryText(project.inquiry_preference))}</p>${contactAction(project.faculty_fixture_id)}</article>`;
 }
 
+function externalOpportunityCard(item) {
+  const sourceName = item.external_source_name || item.organisation_name || 'External provider';
+  const providerLink = safeExternalLink(item.authoritative_url, `View / apply through ${sourceName}`);
+  const lastSuccessful = dateText(item.last_successful_sync_at || item.source_synced_at);
+  const changed = Array.isArray(item.changed_fields) && item.changed_fields.length
+    ? `<p class="meta"><strong>Provider update:</strong> ${escapeHtml(item.changed_fields.join(', '))} changed in the most recent provider update.</p>`
+    : '';
+  const stale = item.external_status === 'not-seen';
+  const withdrawn = item.external_status === 'withdrawn';
+  const freshness = withdrawn
+    ? `<p class="notice"><strong>Provider withdrew this listing.</strong> Last confirmed source update: ${lastSuccessful}. Its last-known content is retained for context; the provider link is authoritative.</p>`
+    : stale
+    ? `<p class="notice"><strong>May be stale.</strong> This provider record was not seen in the latest successful sync. Last successful source sync: ${lastSuccessful}. This is its last-known content, not an active provider withdrawal; check the provider link for the current listing.</p>`
+    : `<p class="meta"><strong>Source freshness:</strong> Last successful sync ${lastSuccessful}.</p>`;
+  const supportCount = Number(item.external_support_count || 0);
+  const support = supportCount
+    ? `<p class="meta"><strong>Algoma-local faculty support:</strong> Available (${escapeHtml(String(supportCount))} verified faculty member${supportCount === 1 ? '' : 's'}). This is not provider endorsement, selection, or eligibility.</p>`
+    : '<p class="meta"><strong>Algoma-local faculty support:</strong> No faculty support has been recorded yet. This does not affect provider eligibility or applications.</p>';
+  return `<article class="card external-card"><p class="eyebrow">External opportunity · ${escapeHtml(sourceName)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p><p class="meta"><strong>Owned by:</strong> ${escapeHtml(sourceName)}. Algoma provides this discovery copy; the provider controls eligibility, decisions, and the application process.</p><p class="meta"><strong>Provider closes:</strong> ${dateText(item.application_deadline)}</p>${freshness}${changed}${support}<div>${tags(item.areas)}</div>${providerLink ? `<p class="actions">${providerLink}</p>` : '<p class="error">The provider link is unavailable. Please check the source directly.</p>'}</article>`;
+}
+
 function opportunityCard(item) {
+  if (item.source_type === 'external') return externalOpportunityCard(item);
   const sourceIsFaculty = item.source_type === "faculty";
   const sourceLabel = sourceIsFaculty ? "Faculty opportunity" : "Industry opportunity";
   const sourceDetail = sourceIsFaculty
@@ -164,6 +196,36 @@ function opportunityCard(item) {
     .join(", ") || "Faculty supervisor available";
   const schedule = [item.target_term && `Target term: ${escapeHtml(item.target_term)}`, item.application_deadline && `Apply by ${dateText(item.application_deadline)}`].filter(Boolean).join(" · ");
   return `<article class="card ${sourceIsFaculty ? "faculty-card" : "industry-card"}"><p class="eyebrow">${sourceLabel}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p><p class="meta">${sourceDetail}</p><p class="meta"><strong>Capacity:</strong> ${escapeHtml(String(item.capacity || "").replaceAll("-", " "))}</p><p class="meta"><strong>Faculty support:</strong> ${supervisors}</p>${schedule ? `<p class="meta"><strong>${schedule}</strong></p>` : ""}<p class="meta">${statePill("open")} Currently available for a new match</p><div>${tags(item.areas)}</div></article>`;
+}
+
+function externalFacultyCard(item) {
+  const sourceName = item.external_source_name || item.organisation_name || 'External provider';
+  const sourceLink = safeExternalLink(item.authoritative_url, `Open provider record at ${sourceName}`);
+  const changed = Array.isArray(item.changed_fields) && item.changed_fields.length
+    ? `<p class="meta"><strong>Most recent provider update:</strong> ${escapeHtml(item.changed_fields.join(', '))}.</p>`
+    : '';
+  const stale = item.external_status === 'withdrawn'
+    ? `<p class="notice"><strong>Provider withdrew this listing.</strong> Last confirmed source update: ${dateText(item.last_successful_sync_at || item.source_synced_at)}. Its last-known content is retained for context.</p>`
+    : item.external_status === 'not-seen'
+    ? `<p class="notice"><strong>May be stale.</strong> Not seen in the latest successful source sync (${dateText(item.last_successful_sync_at || item.source_synced_at)}); last-known data is retained.</p>`
+    : `<p class="meta"><strong>Last successful source sync:</strong> ${dateText(item.last_successful_sync_at || item.source_synced_at)}</p>`;
+  return `<article class="card external-card"><p class="eyebrow">External opportunity · ${escapeHtml(sourceName)}</p><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p>${stale}${changed}<p class="meta">Marking support is an Algoma-local statement that you are willing to support students pursuing the opportunity. Discussion still happens by email; it is not an application, provider endorsement, selection, or eligibility decision.</p><div>${tags(item.areas)}</div><div class="actions"><button type="button" data-external-interest="${escapeHtml(item.id)}" data-external-interest-value="true">I can support students pursuing this</button><button type="button" class="secondary" data-external-interest="${escapeHtml(item.id)}" data-external-interest-value="false">Remove my support</button></div>${sourceLink ? `<p class="actions">${sourceLink}</p>` : ''}</article>`;
+}
+
+function syncHealthCard(source, events = []) {
+  const latest = source.last_run_status
+    ? `<p class="meta"><strong>Latest run:</strong> ${escapeHtml(source.last_run_status)} · ${dateText(source.last_run_at)}</p>`
+    : '<p class="meta">No sync has run yet.</p>';
+  const counts = source.last_successful_run_id
+    ? `<p class="meta"><strong>Latest successful classifications:</strong> New ${escapeHtml(source.last_successful_new_count)} · unchanged ${escapeHtml(source.last_successful_unchanged_count)} · changed ${escapeHtml(source.last_successful_changed_count)} · not seen ${escapeHtml(source.last_successful_not_seen_count)} · malformed skipped ${escapeHtml(source.last_successful_malformed_count)}</p>`
+    : '';
+  const failure = source.last_failure_at
+    ? `<p class="error"><strong>Last failure:</strong> ${escapeHtml(source.last_failure_reason || 'No reason recorded.')} (${dateText(source.last_failure_at)})</p>`
+    : '';
+  const classifications = events.length
+    ? `<p class="meta"><strong>Latest successful per-record classifications:</strong></p><ul class="list-reset">${events.map((event) => `<li><strong>${escapeHtml(event.external_id || 'Malformed record')}</strong> — ${statePill(event.classification)}${Array.isArray(event.changed_fields) && event.changed_fields.length ? ` (${escapeHtml(event.changed_fields.join(', '))})` : ''}<br><span class="meta">${escapeHtml(event.details || '')}</span></li>`).join('')}</ul>`
+    : '';
+  return `<article class="card external-card"><p class="eyebrow">Operator sync health</p><h3>${escapeHtml(source.display_name)}</h3><p class="meta"><strong>Last successful source data:</strong> ${dateText(source.last_successful_source_at || source.last_successful_sync_at)}</p>${latest}${counts}${failure}${classifications}</article>`;
 }
 
 function showcaseCard(outcome) {
@@ -315,6 +377,7 @@ function clearAuthenticatedWorkspace() {
   activeProfile = null;
   $("#student-workspace").hidden = true;
   $("#faculty-workspace").hidden = true;
+  $("#operator-workspace").hidden = true;
   $("#auth-sign-out").hidden = true;
 }
 
@@ -326,9 +389,17 @@ async function loadAuthenticatedWorkspace() {
   try {
     activeProfile = await request("/api/me");
     $("#auth-sign-out").hidden = false;
+    if (activeProfile.user?.is_admin) {
+      await operatorWorkspace();
+    } else {
+      $("#operator-workspace").hidden = true;
+    }
     if (activeProfile.faculty?.verified_faculty) {
       $("#student-workspace").hidden = true;
       await facultyWorkspace(activeProfile);
+    } else if (activeProfile.user?.is_admin) {
+      $("#student-workspace").hidden = true;
+      $("#faculty-workspace").hidden = true;
     } else {
       $("#faculty-workspace").hidden = true;
       await studentWorkspace(activeProfile);
@@ -435,19 +506,24 @@ async function updateStudentProfileVisibility(id, profileVisible) {
 
 async function facultyWorkspace(profile) {
   try {
-    const [opportunities, subscriptions, notifications, matches, outcomes] = await Promise.all([
+    const [opportunities, subscriptions, notifications, matches, outcomes, discovery] = await Promise.all([
       request("/api/faculty/opportunities"),
       request("/api/faculty/me/subscriptions"),
       request("/api/faculty/me/notifications"),
       request("/api/matches/mine"),
       request("/api/outcomes/mine"),
+      request("/api/opportunities"),
     ]);
     const lifecycle = await Promise.all(opportunities.map(lifecycleFor));
+    const externalOpportunities = discovery.filter((item) => item.source_type === "external");
     $("#faculty-workspace").hidden = false;
     $("#faculty-name").textContent = profile.faculty?.display_name || profile.user.email;
-    $("#faculty-public-profile-link").innerHTML = profile.faculty?.fixture_id && profile.faculty?.public_profile
-      ? `Your consent-controlled public outcomes: ${publicProfileLink(profile.faculty, "faculty")}.`
-      : "Your public outcome profile remains unavailable until your faculty profile is public.";
+    const facultyProfileLink = $("#faculty-public-profile-link");
+    if (facultyProfileLink) {
+      facultyProfileLink.innerHTML = profile.faculty?.fixture_id && profile.faculty?.public_profile
+        ? `Your consent-controlled public outcomes: ${publicProfileLink(profile.faculty, "faculty")}.`
+        : "Your public outcome profile remains unavailable until your faculty profile is public.";
+    }
     $("#subscribe-all").checked = subscriptions.subscribe_all;
     $("#subscription-form").querySelectorAll('input[name="areas"]').forEach((input) => {
       input.checked = subscriptions.areas.includes(input.value);
@@ -458,6 +534,9 @@ async function facultyWorkspace(profile) {
     $("#faculty-opportunities").innerHTML = opportunities.length
       ? opportunities.map((item, index) => facultyOpportunityCard(item, lifecycle[index], matches)).join("")
       : '<p class="empty">No opportunities have been submitted.</p>';
+    $("#external-faculty-opportunities").innerHTML = externalOpportunities.length
+      ? externalOpportunities.map(externalFacultyCard).join("")
+      : '<p class="empty">No external opportunities have been synchronised yet.</p>';
     $("#faculty-outcomes").innerHTML = outcomes.length
       ? outcomes.map((outcome) => outcomeCard(outcome, "faculty")).join("")
       : '<p class="empty">No outcomes involving you yet.</p>';
@@ -570,6 +649,12 @@ function bindFacultyDynamicControls() {
       }
     });
   });
+  $("#external-faculty-opportunities").querySelectorAll("[data-external-interest]").forEach((button) => {
+    button.addEventListener("click", () => externalInterest(
+      button.dataset.externalInterest,
+      button.dataset.externalInterestValue === "true"
+    ));
+  });
   $("#faculty-outcomes").querySelectorAll("[data-faculty-confirm]").forEach((button) => {
     button.addEventListener("click", () => confirmFacultyOutcome(button.dataset.facultyConfirm));
   });
@@ -581,6 +666,19 @@ function bindFacultyDynamicControls() {
 async function willingness(id, willing) {
   try {
     await request(`/api/opportunities/${encodeURIComponent(id)}/willingness`, { method: "PUT", ...jsonOptions({ willing }) });
+    await refreshAfterMutation();
+  } catch (error) {
+    show($("#faculty-r3-result"), error.message, true);
+  }
+}
+
+async function externalInterest(id, interested) {
+  try {
+    const result = await request(`/api/external-opportunities/${encodeURIComponent(id)}/interest`, {
+      method: "PUT",
+      ...jsonOptions({ interested }),
+    });
+    show($("#faculty-r3-result"), result.message);
     await refreshAfterMutation();
   } catch (error) {
     show($("#faculty-r3-result"), error.message, true);
@@ -617,6 +715,57 @@ async function facultyOutcomeConsent(id) {
   } catch (error) {
     show($("#faculty-r3-result"), error.message, true);
   }
+}
+
+async function operatorWorkspace() {
+  try {
+    const health = await request("/api/external-sync/health");
+    const withEvents = await Promise.all(health.map(async (source) => ({
+      source,
+      events: (source.last_successful_run_id || source.last_run_id)
+        ? await request(`/api/external-sync/runs/${encodeURIComponent(source.last_successful_run_id || source.last_run_id)}/events`)
+        : [],
+    })));
+    $("#operator-workspace").hidden = false;
+    $("#operator-sync-health").innerHTML = withEvents.length
+      ? withEvents.map(({ source, events }) => syncHealthCard(source, events)).join("")
+      : '<p class="empty">No external source has been synchronised yet.</p>';
+    bindOperatorControls();
+  } catch (error) {
+    $("#operator-workspace").hidden = false;
+    show($("#operator-sync-result"), error.message, true);
+  }
+}
+
+function bindOperatorControls() {
+  $("#operator-workspace").querySelectorAll("[data-run-external-sync]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        const result = await request("/api/external-sync", {
+          method: "POST",
+          ...jsonOptions({ fixture: button.dataset.runExternalSync }),
+        });
+        const sync = result.sync || {};
+        show($("#operator-sync-result"), `Sync complete: ${sync.new_count || 0} new, ${sync.unchanged_count || 0} unchanged, ${sync.changed_count || 0} changed, ${sync.not_seen_count || 0} not seen, and ${sync.malformed_count || 0} malformed records skipped.`);
+        await refreshAfterMutation();
+      } catch (error) {
+        show($("#operator-sync-result"), error.message, true);
+        await operatorWorkspace();
+      }
+    });
+  });
+  const failed = $("#operator-workspace").querySelector("[data-simulate-external-failure]");
+  if (failed) failed.addEventListener("click", async () => {
+    try {
+      await request("/api/external-sync", {
+        method: "POST",
+        ...jsonOptions({ simulate_failure: true }),
+      });
+    } catch (error) {
+      show($("#operator-sync-result"), `${error.message} Existing external opportunity data was left unchanged.`, true);
+      await operatorWorkspace();
+    }
+  });
 }
 
 $("#area").addEventListener("change", loadDiscovery);
