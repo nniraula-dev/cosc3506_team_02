@@ -12,7 +12,9 @@
     "verify:r2": "node verify-r2-fixture.js",
     "seed:r3": "node seed-r3.js",
     "verify:r3": "node verify-r3-fixture.js",
-    "verify:r3-api": "node verify-r3-api.js"
+    "verify:r3-api": "node verify-r3-api.js",
+    "reset:r4": "node reset-r4.js",
+    "verify:r4-api": "node verify-r4-api.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

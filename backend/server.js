@@ -6,6 +6,7 @@ const express = require("express");
 const { Pool } = require("pg");
 const registerR2Routes = require("./r2-routes");
 const registerR3Routes = require("./r3-routes");
+const registerR4Routes = require("./r4-routes");
 
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is required.");
@@ -444,6 +445,7 @@ registerR2Routes(app, { pool, getAuthenticatedUser });
 // Must precede /api/faculty/:fixtureId so public outcome profile routes are
 // not interpreted as a faculty fixture id by the older R1 route.
 registerR3Routes(app, { pool, getAuthenticatedUser });
+registerR4Routes(app, { pool, getAuthenticatedUser });
 
 /*
  * Single faculty profile

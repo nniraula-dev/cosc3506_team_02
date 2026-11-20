@@ -105,6 +105,12 @@ module.exports = function registerR3Routes(app, { pool, getAuthenticatedUser }) 
       [value]
     );
     if (!result.rows[0]) throw notFound("Opportunity not found.");
+    if (result.rows[0].source_type === "external") {
+      // R4 source-controlled records are discovery copies.  They cannot be
+      // scheduled, matched, renewed, or otherwise changed through a local
+      // lifecycle endpoint; faculty support uses the dedicated R4 action.
+      throw forbidden("External opportunities are source-controlled and cannot use local lifecycle or match actions.");
+    }
     return result.rows[0];
   }
 

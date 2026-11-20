@@ -117,6 +117,10 @@ module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) 
           JOIN faculty public_f ON public_f.id = public_ios.faculty_id
           WHERE public_ios.opportunity_id = o.id AND public_f.public_profile = TRUE
         )`;
+    // R4 keeps external opportunities in ordinary discovery without applying
+    // local supervisor, lifecycle, or term-expiry rules to a provider-owned
+    // record.  The two branches deliberately share one response shape so a
+    // student can filter local and external opportunities together.
     return `
       SELECT o.id, o.submission_id, o.organisation_name, o.title, o.description,
         o.source_type, o.capacity, o.status, o.target_term, o.application_deadline, o.created_at,
@@ -124,14 +128,44 @@ module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) 
         COALESCE(json_agg(DISTINCT jsonb_build_object(
           'fixture_id', f.fixture_id, 'display_name', f.display_name,
           'public_profile', f.public_profile
-        )) FILTER (WHERE f.id IS NOT NULL), '[]') AS supervisors
+        )) FILTER (WHERE f.id IS NOT NULL), '[]') AS supervisors,
+        0::int AS external_support_count,
+        NULL::text AS external_source_key, NULL::text AS external_source_name,
+        NULL::text AS authoritative_url, NULL::text AS external_status,
+        NULL::date AS source_synced_at, NULL::timestamptz AS last_successful_sync_at,
+        NULL::timestamptz AS last_seen_at, NULL::timestamptz AS last_changed_at,
+        '[]'::jsonb AS changed_fields
       FROM industry_opportunities o
       JOIN industry_opportunity_supervisors ios ON ios.opportunity_id = o.id
       JOIN faculty f ON f.id = ios.faculty_id AND f.verified_faculty = TRUE
       LEFT JOIN industry_opportunity_areas oa ON oa.opportunity_id = o.id
       LEFT JOIN research_areas ra ON ra.id = oa.research_area_id
-      WHERE ${visibility}
+      WHERE o.source_type IN ('industry', 'faculty') AND ${visibility}
       GROUP BY o.id
+
+      UNION ALL
+
+      SELECT o.id, o.submission_id, o.organisation_name, o.title, o.description,
+        o.source_type, o.capacity, o.status, o.target_term, o.application_deadline, o.created_at,
+        COALESCE(array_agg(DISTINCT ra.name) FILTER (WHERE ra.name IS NOT NULL), '{}') AS areas,
+        -- Faculty support is shown only as an anonymous local-support count.
+        -- It lets students tell whether support is available without exposing
+        -- a faculty identity or implying provider endorsement.
+        '[]'::json AS supervisors,
+        COUNT(DISTINCT interest.faculty_id)::int AS external_support_count,
+        source.source_key AS external_source_key,
+        source.display_name AS external_source_name,
+        external.authoritative_url, external.source_status AS external_status,
+        external.source_synced_at, source.last_successful_sync_at,
+        external.last_seen_at, external.last_changed_at, external.changed_fields
+      FROM industry_opportunities o
+      JOIN external_opportunities external ON external.opportunity_id = o.id
+      JOIN external_sources source ON source.id = external.source_id
+      LEFT JOIN industry_opportunity_areas oa ON oa.opportunity_id = o.id
+      LEFT JOIN research_areas ra ON ra.id = oa.research_area_id
+      LEFT JOIN external_faculty_interests interest ON interest.opportunity_id = o.id
+      WHERE o.source_type = 'external'
+      GROUP BY o.id, external.opportunity_id, source.id
     `;
   }
 
@@ -237,6 +271,7 @@ module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) 
          LEFT JOIN industry_opportunity_supervisors ios ON ios.opportunity_id = o.id
          LEFT JOIN industry_opportunity_areas oa ON oa.opportunity_id = o.id
          LEFT JOIN research_areas ra ON ra.id = oa.research_area_id
+         WHERE o.source_type IN ('industry', 'faculty')
          GROUP BY o.id, lead.fixture_id, lead.display_name
          ORDER BY o.created_at DESC`
       );
@@ -251,10 +286,19 @@ module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) 
       if (!faculty) return;
       const willing = request.body.willing !== false;
       await client.query("BEGIN");
-      const opportunity = await client.query("SELECT id FROM industry_opportunities WHERE id = $1 FOR UPDATE", [request.params.id]);
+      const opportunity = await client.query(
+        "SELECT id, source_type FROM industry_opportunities WHERE id = $1 FOR UPDATE",
+        [request.params.id]
+      );
       if (!opportunity.rows[0]) {
         await client.query("ROLLBACK");
         return response.status(404).json({ error: "Opportunity not found." });
+      }
+      if (opportunity.rows[0].source_type === "external") {
+        await client.query("ROLLBACK");
+        return response.status(400).json({
+          error: "External opportunities use separate Algoma-local support, not local supervision.",
+        });
       }
       if (willing) {
         await client.query(
@@ -290,7 +334,7 @@ module.exports = function registerR2Routes(app, { pool, getAuthenticatedUser }) 
       const result = await pool.query(
         `UPDATE industry_opportunities
          SET engagement_state = $1, engagement_faculty_id = $2, updated_at = now()
-         WHERE id = $3 RETURNING engagement_state`,
+         WHERE id = $3 AND source_type <> 'external' RETURNING engagement_state`,
         [state, faculty.id, request.params.id]
       );
       if (!result.rows[0]) return response.status(404).json({ error: "Opportunity not found." });

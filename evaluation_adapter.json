@@ -1,64 +1,52 @@
 {
   "release": "R4",
   "project_option": "Project 2 — Opportunity Registry and Pathway Platform",
-  "deployment_url": "https://cosc3506-team-02-1.onrender.com",
-  "backend_url": "https://cosc3506-team-02-1backend.onrender.com",
+  "chosen_challenge": "R4-20 — Interest survives synchronisation",
+  "deployment_url": "PENDING_DEPLOYMENT_OF_CURRENT_R4_COMMIT",
+  "backend_url": "PENDING_DEPLOYMENT_OF_CURRENT_R4_COMMIT",
   "repository_url": "https://github.com/nniraula-dev/cosc3506_team_02",
-  "release_tag": "R4-submission",
-  "release_commit": "fa34d0e821c1488a5170e09e54ab7e6f385ace94",
-  "deployed_branch_commit": "ff3db4d06a803b0cc027aedf11fe53c1986205a8",
-  "scope_note": "On 2026-11-16 (Toronto), Moodle exposed Project 2 requirements through R3 but no visible R4 requirements chapter or fixture bundle. These checks document verified peer-QA repairs and do not claim an undisclosed R4 feature specification.",
-  "verification_status": "The local automated suite passed 24/24 checks and the frontend production build passed. After Supabase resumed, the deployed backend health endpoint returned 200 with database reachable. Render deployed branch commit ff3db4d06a803b0cc027aedf11fe53c1986205a8 live; the public page exposed the new Supervised opportunities heading and Sign out control, and GET /api/opportunities returned source_type faculty for O-305. A controlled mutation-enabled deployed QA run has not been performed against production.",
+  "release_tag": "R4-submission (move after final assessed commit)",
+  "release_commit": "PENDING_LOCAL_COMMIT",
+  "verification_status": "Local static and regression suite passed 29/29 checks and the frontend build passed. This workspace has no DATABASE_URL, so the database-backed adapter has not yet been run here. Do not represent the previous R3-only deployment as this R4 implementation.",
+  "sync_trigger": {
+    "operator_ui": "Sign in as the staff operator and select Run Mitacs fixture v1 or v2 in External-source operations.",
+    "api": "POST /api/external-sync with {\"fixture\":\"v1\"} or {\"fixture\":\"v2\"}; server-side operator authorization is required.",
+    "failure_simulation": "POST /api/external-sync with {\"simulate_failure\":true}; the endpoint returns an error after recording failure health, without changing external opportunity data."
+  },
   "checks": [
     {
-      "requirement_or_scenario": "Peer-QA repair: an old-run match cannot be confirmed after renewal",
-      "entry_point": "POST /api/opportunities/{opportunityId}/renew; POST /api/matches/{matchId}/confirm; GET /api/opportunities/{opportunityId}/lifecycle",
-      "method_or_action": "Renew an expired opportunity, then attempt to confirm a match proposal belonging to its previous run.",
-      "role": "verified faculty and an invited student",
-      "setup": "Use a disposable/reset R3 fixture copy with an expired opportunity and an invited match from its prior run.",
-      "expected_behavior": "The old proposal confirmation is rejected, and the new opportunity run remains open rather than becoming matched."
+      "requirement_or_scenario": "R4-01 to R4-06: external provenance and handoff",
+      "entry_point": "GET /api/opportunities; external opportunity card",
+      "role": "public visitor or student",
+      "expected_behavior": "Records identify their named provider, show a safe authoritative link, and say the provider controls eligibility, application, and outcome."
     },
     {
-      "requirement_or_scenario": "Peer-QA repair: dates respect the configured evaluation date",
-      "entry_point": "POST /api/opportunities/{opportunityId}/renew; POST /api/opportunities/{opportunityId}/outcomes",
-      "method_or_action": "Attempt a renewal deadline before the fixture evaluation date and an outcome completion date after that date.",
-      "role": "verified faculty and a participating student",
-      "setup": "Use the controlled R3 fixture's configured evaluation date rather than the wall-clock date.",
-      "expected_behavior": "Both invalid dates are rejected with clear validation errors and no invalid lifecycle state is created."
+      "requirement_or_scenario": "R4-08 to R4-12: v1 then v2 sync classification",
+      "entry_point": "POST /api/external-sync; GET /api/external-sync/health; GET /api/external-sync/runs/{runId}/events",
+      "role": "operator",
+      "setup": "Run v1 first, then v2 from the supplied fixture bundle.",
+      "expected_behavior": "v2 reports MX-1005 new, MX-1001/MX-1004 unchanged, MX-1002 changed, MX-1003 not seen, and one malformed record skipped."
     },
     {
-      "requirement_or_scenario": "Peer-QA repair: faculty-source and industry opportunity rules stay distinct",
-      "entry_point": "PATCH /api/matches/{matchId}/partner-agreement; deployed faculty and public opportunity cards",
-      "method_or_action": "Attempt to record a partner agreement for a faculty-source opportunity, then inspect labels and controls for both source types.",
-      "role": "verified faculty and public visitor",
-      "setup": "Use one faculty-source opportunity and one industry opportunity from a controlled fixture.",
-      "expected_behavior": "Partner agreement is refused for a faculty-source opportunity and remains available only for industry opportunities; each source type is labelled accurately."
+      "requirement_or_scenario": "R4-10 to R4-14: disappearance, failure safety, freshness, and health",
+      "entry_point": "External cards and operator health surface",
+      "role": "student/faculty and operator",
+      "expected_behavior": "MX-1003 retains last-known content and is labelled not seen; a simulated failure changes no record state and exposes a failure reason only to the operator."
     },
     {
-      "requirement_or_scenario": "Peer-QA repair: outcome availability explanations refresh after confirmation and consent",
-      "entry_point": "POST /api/outcomes/{outcomeId}/faculty-confirm; PATCH /api/outcomes/{outcomeId}/consent; GET /api/opportunities/{opportunityId}/lifecycle",
-      "method_or_action": "Confirm a completed outcome and record required participant consent, then inspect its safe lifecycle explanation.",
-      "role": "participating verified faculty and participating students",
-      "setup": "Use a controlled completed-outcome fixture with all required participants available.",
-      "expected_behavior": "The current completed run receives an updated public-availability explanation only after the required confirmation, consent, and public-profile conditions are satisfied."
+      "requirement_or_scenario": "R4-15 to R4-20: local faculty support survives source changes (chosen challenge)",
+      "entry_point": "PUT /api/external-opportunities/{id}/interest; POST /api/external-sync",
+      "role": "verified faculty then operator",
+      "setup": "Record support on MX-1002 before v2; for the chosen challenge record support on MX-1003 before it disappears and reappears.",
+      "expected_behavior": "Support remains separate from source-controlled fields and survives change, disappearance, and reappearance without implying provider endorsement."
     },
     {
-      "requirement_or_scenario": "Peer-QA repair: sign-out clears current and legacy client sessions",
-      "entry_point": "Deployed authentication panel",
-      "method_or_action": "Sign in through the passwordless test-mode flow, select Sign out, then refresh the page.",
-      "role": "authenticated user",
-      "setup": "Use an instructor-approved non-production test account.",
-      "expected_behavior": "Authenticated workspace controls disappear and both sessionStorage and the former localStorage session location are cleared."
-    },
-    {
-      "requirement_or_scenario": "Peer-QA repair: public discovery offers the safe faculty-contact action",
-      "entry_point": "Deployed public discovery cards; GET /api/faculty/{fixtureId}/contact",
-      "method_or_action": "Browse public projects or faculty cards and select the faculty-contact action for an eligible public faculty profile.",
-      "role": "public visitor",
-      "setup": "Use an opportunity or faculty card associated with a public faculty profile.",
-      "expected_behavior": "The contact action uses the existing safe contact endpoint and exposes no partner contact information."
+      "requirement_or_scenario": "R4-25 to R4-27: external timing, authorization, and regression",
+      "entry_point": "Discovery, POST /api/external-sync, GET /api/external-sync/health, R1-R3 workflows",
+      "role": "public visitor, ordinary student, verified faculty, and operator",
+      "expected_behavior": "External records are not expired by Algoma timing; non-operators cannot trigger or inspect sync health; prior release workflows continue to work."
     }
   ],
-  "fixture_setup": "Use a disposable or evaluator-controlled R3 fixture database. Apply schema.sql, then use the repository's controlled R1/R2 setup followed by npm --prefix backend run seed:r3. Do not use mutation-enabled fixture seeding or the deployed QA runner against shared production data without explicit authorization and an isolated reset plan.",
-  "test_access": "Use instructor-approved passwordless test-mode accounts. Provide verified-faculty, invited-student, uninvolved-student, and staff/admin fixture access only through the approved private course channel; do not commit passwords, tokens, challenge codes, or database credentials."
+  "fixture_setup": "Use a disposable or evaluator-controlled database. Apply schema.sql, then run node backend/seed-r1.js, npm --prefix backend run seed:r2, and npm --prefix backend run seed:r3. Run R4 QA only with a reset plan; never run mutation-enabled fixture checks against shared production data.",
+  "test_access": "Use instructor-approved passwordless test-mode accounts. The R3 fixture includes r3.staff@algomau.ca as operator and the linked R3 faculty accounts. Do not commit passwords, tokens, challenge codes, or database credentials."
 }
